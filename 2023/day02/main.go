@@ -71,15 +71,13 @@ func parseGameLine(line string) (int64, []Bag, Bag) {
 	return gameId, draws, minimumBagForGame
 }
 
-func getSumOfIDsForPossibleGames(file *os.File, testingBag Bag) int64 {
+func getSumOfGamePowerCubes(file *os.File) int64 {
 	var finalSum int64
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		gameId, _, minimumBagForGame := parseGameLine(line)
-		if minimumBagForGame.red <= testingBag.red && minimumBagForGame.green <= testingBag.green && minimumBagForGame.blue <= testingBag.blue {
-			finalSum += gameId
-		}
+		_, _, minimumBagForGame := parseGameLine(line)
+		finalSum += minimumBagForGame.red * minimumBagForGame.green * minimumBagForGame.blue
 	}
 
 	if errScanningFile := scanner.Err(); errScanningFile != nil {
@@ -96,13 +94,7 @@ func main() {
 	}
 	defer inputFile.Close()
 
-	testingBag := Bag{
-		red:   12,
-		green: 13,
-		blue:  14,
-	}
-
-	finalSum := getSumOfIDsForPossibleGames(inputFile, testingBag)
+	finalSum := getSumOfGamePowerCubes(inputFile)
 
 	log.Printf("Final sum: %d", finalSum)
 }
