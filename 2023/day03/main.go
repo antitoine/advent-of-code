@@ -10,13 +10,8 @@ import (
 
 const matrixLength = 140
 
-type LinkedNumber struct {
-	number   int64
-	included bool
-}
-
 type Cell struct {
-	linkedNumber *LinkedNumber
+	linkedNumber *int64
 }
 
 type Row = []Cell
@@ -27,8 +22,8 @@ type Coords struct {
 }
 
 type Matrix struct {
-	rows            []Row
-	detectedSymbols []Coords
+	rows          []Row
+	detectedGears []Coords
 }
 
 type DetectedNumber struct {
@@ -52,11 +47,8 @@ func (d *DetectedNumber) affectedNumber(row Row) {
 	if nb == nil {
 		return
 	}
-	linkedNumber := &LinkedNumber{
-		number: *nb,
-	}
 	for _, cellIdx := range d.affectedCellsIdx {
-		row[cellIdx].linkedNumber = linkedNumber
+		row[cellIdx].linkedNumber = nb
 	}
 	d.numberStr = ""
 	d.affectedCellsIdx = nil
@@ -80,7 +72,9 @@ func parseMatrix(file *os.File) Matrix {
 					detectedNumber.affectedCellsIdx = append(detectedNumber.affectedCellsIdx, cellIdx)
 				} else {
 					detectedNumber.affectedNumber(row)
-					matrix.detectedSymbols = append(matrix.detectedSymbols, Coords{rowIdx, cellIdx})
+				}
+				if char == '*' {
+					matrix.detectedGears = append(matrix.detectedGears, Coords{rowIdx, cellIdx})
 				}
 			} else {
 				detectedNumber.affectedNumber(row)
@@ -98,43 +92,60 @@ func parseMatrix(file *os.File) Matrix {
 	return matrix
 }
 
-func (cell Cell) getNumberToSum() int64 {
-	if cell.linkedNumber != nil && !cell.linkedNumber.included {
-		cell.linkedNumber.included = true
-		return cell.linkedNumber.number
-	} else {
-		return 0
+type Ratio struct {
+	linkedNumbers map[*int64]struct{}
+	keptNumbers   []int64
+}
+
+func (ratio *Ratio) attachCell(cell Cell) {
+	nb := cell.linkedNumber
+	if cell.linkedNumber != nil {
+		if _, ok := ratio.linkedNumbers[nb]; !ok {
+			ratio.linkedNumbers[nb] = struct{}{}
+			ratio.keptNumbers = append(ratio.keptNumbers, *nb)
+		}
 	}
+}
+
+func (ratio *Ratio) getNumberToSum() int64 {
+	if len(ratio.keptNumbers) == 2 {
+		return ratio.keptNumbers[0] * ratio.keptNumbers[1]
+	}
+	return 0
 }
 
 func getSumOfNumbersAttachedToSymbols(file *os.File) int64 {
 	var finalSum int64
 	matrix := parseMatrix(file)
-	for _, coords := range matrix.detectedSymbols {
+	for _, coords := range matrix.detectedGears {
+		ratio := &Ratio{
+			linkedNumbers: make(map[*int64]struct{}),
+		}
 		if coords.rowIdx-1 >= 0 {
 			if coords.cellIdx-1 >= 0 {
-				finalSum += matrix.rows[coords.rowIdx-1][coords.cellIdx-1].getNumberToSum()
+				ratio.attachCell(matrix.rows[coords.rowIdx-1][coords.cellIdx-1])
 			}
-			finalSum += matrix.rows[coords.rowIdx-1][coords.cellIdx].getNumberToSum()
+			ratio.attachCell(matrix.rows[coords.rowIdx-1][coords.cellIdx])
 			if coords.cellIdx+1 < matrixLength {
-				finalSum += matrix.rows[coords.rowIdx-1][coords.cellIdx+1].getNumberToSum()
+				ratio.attachCell(matrix.rows[coords.rowIdx-1][coords.cellIdx+1])
 			}
 		}
 		if coords.cellIdx-1 >= 0 {
-			finalSum += matrix.rows[coords.rowIdx][coords.cellIdx-1].getNumberToSum()
+			ratio.attachCell(matrix.rows[coords.rowIdx][coords.cellIdx-1])
 		}
 		if coords.cellIdx+1 < matrixLength {
-			finalSum += matrix.rows[coords.rowIdx][coords.cellIdx+1].getNumberToSum()
+			ratio.attachCell(matrix.rows[coords.rowIdx][coords.cellIdx+1])
 		}
 		if coords.rowIdx+1 < matrixLength {
 			if coords.cellIdx-1 >= 0 {
-				finalSum += matrix.rows[coords.rowIdx+1][coords.cellIdx-1].getNumberToSum()
+				ratio.attachCell(matrix.rows[coords.rowIdx+1][coords.cellIdx-1])
 			}
-			finalSum += matrix.rows[coords.rowIdx+1][coords.cellIdx].getNumberToSum()
+			ratio.attachCell(matrix.rows[coords.rowIdx+1][coords.cellIdx])
 			if coords.cellIdx+1 < matrixLength {
-				finalSum += matrix.rows[coords.rowIdx+1][coords.cellIdx+1].getNumberToSum()
+				ratio.attachCell(matrix.rows[coords.rowIdx+1][coords.cellIdx+1])
 			}
 		}
+		finalSum += ratio.getNumberToSum()
 	}
 
 	return finalSum
