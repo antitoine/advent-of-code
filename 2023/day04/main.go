@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"os"
 	"regexp"
@@ -28,10 +29,11 @@ func numbersStrToInts(numbersStr string) []int64 {
 	return numbers
 }
 
-func getSumOfWinningCards(file *os.File) int64 {
+func getSumOfWinningCards(input io.Reader) int64 {
 	var finalSum int64
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
+	var cardsFactor []int64
+	scanner := bufio.NewScanner(input)
+	for cardIdx := 0; scanner.Scan(); cardIdx++ {
 		line := scanner.Text()
 
 		results := cardLineRegex.FindStringSubmatch(line)
@@ -43,16 +45,12 @@ func getSumOfWinningCards(file *os.File) int64 {
 
 		winningIndex := 0
 		gettingIndex := 0
-		var points int64
+		match := 0
 		for {
 			if winningIndex >= len(winningNumbers) || gettingIndex >= len(gettingNumbers) {
 				break
 			} else if winningNumbers[winningIndex] == gettingNumbers[gettingIndex] {
-				if points == 0 {
-					points = 1
-				} else {
-					points *= 2
-				}
+				match++
 				gettingIndex++
 			} else if winningNumbers[winningIndex] < gettingNumbers[gettingIndex] {
 				winningIndex++
@@ -62,7 +60,19 @@ func getSumOfWinningCards(file *os.File) int64 {
 				log.Fatalf("Unkown case: winningIndex=%d, gettingIndex=%d", winningIndex, gettingIndex)
 			}
 		}
-		finalSum += points
+		if cardIdx >= len(cardsFactor) {
+			cardsFactor = append(cardsFactor, 1)
+		} else {
+			cardsFactor[cardIdx]++
+		}
+		for i := 1; i <= match; i++ {
+			if cardIdx+i >= len(cardsFactor) {
+				cardsFactor = append(cardsFactor, 1*cardsFactor[cardIdx])
+			} else {
+				cardsFactor[cardIdx+i] += 1 * cardsFactor[cardIdx]
+			}
+		}
+		finalSum += cardsFactor[cardIdx]
 	}
 
 	if errScanningFile := scanner.Err(); errScanningFile != nil {
