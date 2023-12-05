@@ -10,6 +10,11 @@ import (
 	"strconv"
 )
 
+type Range struct {
+	from int64
+	len  int64
+}
+
 type RangeMap struct {
 	from int64
 	to   int64
@@ -42,12 +47,23 @@ func numbersStrToInts(numbersStr string) []int64 {
 
 var seedsLineRegex = regexp.MustCompile(`^seeds: (.*)$`)
 
-func parseSeeds(line string) []int64 {
+func parseSeeds(line string) []Range {
 	results := seedsLineRegex.FindStringSubmatch(line)
 	if len(results) != 2 {
 		log.Fatalf("Unable to parse seeds line '%s', getting results length of %d", line, len(results))
 	}
-	return numbersStrToInts(results[1])
+	numbers := numbersStrToInts(results[1])
+	if len(numbers)%2 != 0 {
+		log.Fatalf("Unable to parse seeds line '%s', getting unexpected length of %d after parsing", line, len(numbers))
+	}
+	var seeds []Range
+	for i := 0; i < len(numbers); i += 2 {
+		seeds = append(seeds, Range{
+			from: numbers[i],
+			len:  numbers[i+1],
+		})
+	}
+	return seeds
 }
 
 var mappingLineRegex = regexp.MustCompile(`^([^-]*)-to-([^ ]*) map:$`)
@@ -60,7 +76,7 @@ func parseMapping(line string) (string, string) {
 	return results[1], results[2]
 }
 
-func parseInput(input io.Reader) ([]int64, *Map) {
+func parseInput(input io.Reader) ([]Range, *Map) {
 	scanner := bufio.NewScanner(input)
 
 	// Seeds
@@ -117,24 +133,26 @@ func getLowestLocation(input io.Reader) int64 {
 	seeds, firstMap := parseInput(input)
 
 	lowestLocation := int64(-1)
-	for _, seed := range seeds {
-		currentMap := firstMap
-		currentIdx := seed
-		for {
-			for _, mapping := range currentMap.mapping {
-				if currentIdx >= mapping.from && currentIdx < mapping.from+mapping.len {
-					currentIdx = (currentIdx - mapping.from) + mapping.to
+	for _, seedRange := range seeds {
+		for seed := seedRange.from; seed < seedRange.from+seedRange.len; seed++ {
+			currentMap := firstMap
+			currentIdx := seed
+			for {
+				for _, mapping := range currentMap.mapping {
+					if currentIdx >= mapping.from && currentIdx < mapping.from+mapping.len {
+						currentIdx = (currentIdx - mapping.from) + mapping.to
+						break
+					}
+				}
+				if currentMap.nextMap != nil {
+					currentMap = currentMap.nextMap
+				} else {
 					break
 				}
 			}
-			if currentMap.nextMap != nil {
-				currentMap = currentMap.nextMap
-			} else {
-				break
+			if lowestLocation == -1 || currentIdx < lowestLocation {
+				lowestLocation = currentIdx
 			}
-		}
-		if lowestLocation == -1 || currentIdx < lowestLocation {
-			lowestLocation = currentIdx
 		}
 	}
 

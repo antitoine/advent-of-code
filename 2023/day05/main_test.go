@@ -42,7 +42,7 @@ humidity-to-location map:
 `
 
 	lowestLocation := getLowestLocation(strings.NewReader(input))
-	if lowestLocation != 35 {
-		t.Errorf("Expected lowestLocation to be 35, got %d", lowestLocation)
+	if lowestLocation != 46 {
+		t.Errorf("Expected lowestLocation to be 46, got %d", lowestLocation)
 	}
 }
