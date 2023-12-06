@@ -11,7 +11,7 @@ Distance:  9  40  200
 `
 
 	result := getResult(strings.NewReader(input))
-	if result != 288 {
-		t.Errorf("Expected result to be 288, got %d", result)
+	if result != 71503 {
+		t.Errorf("Expected result to be 71503, got %d", result)
 	}
 }
