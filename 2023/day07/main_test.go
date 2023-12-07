@@ -13,7 +13,7 @@ KTJJT 220
 QQQJA 483`
 
 	result := getResult(strings.NewReader(input))
-	if result != 6440 {
-		t.Errorf("Expected result to be 6440, got %d", result)
+	if result != 5905 {
+		t.Errorf("Expected result to be 5905, got %d", result)
 	}
 }

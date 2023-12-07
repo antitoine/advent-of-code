@@ -14,6 +14,7 @@ import (
 type Card = int8
 
 const (
+	CardJ Card = 1
 	Card2 Card = 2
 	Card3 Card = 3
 	Card4 Card = 4
@@ -23,14 +24,15 @@ const (
 	Card8 Card = 8
 	Card9 Card = 9
 	CardT Card = 10
-	CardJ Card = 11
-	CardQ Card = 12
-	CardK Card = 13
-	CardA Card = 14
+	CardQ Card = 11
+	CardK Card = 12
+	CardA Card = 13
 )
 
 func CardString(card Card) string {
 	switch card {
+	case CardJ:
+		return "J"
 	case Card2:
 		return "2"
 	case Card3:
@@ -49,8 +51,6 @@ func CardString(card Card) string {
 		return "9"
 	case CardT:
 		return "T"
-	case CardJ:
-		return "J"
 	case CardQ:
 		return "Q"
 	case CardK:
@@ -122,11 +122,18 @@ func getCardsCombination(cards []Card) Combination {
 	}
 	threeIdenticalCards := false
 	twoIdenticalCards := 0
-	for _, count := range cardsCount {
+	nbJokers := cardsCount[CardJ]
+	for card, count := range cardsCount {
+		if card == CardJ {
+			continue
+		}
 		if count == 5 {
 			return CombinationFiveOfAKind
 		}
 		if count == 4 {
+			if nbJokers > 0 {
+				return CombinationFiveOfAKind
+			}
 			return CombinationFourOfAKind
 		}
 		if count == 3 {
@@ -136,17 +143,54 @@ func getCardsCombination(cards []Card) Combination {
 			twoIdenticalCards += 1
 		}
 	}
-	if threeIdenticalCards && twoIdenticalCards > 0 {
-		return CombinationFullHouse
-	} else if threeIdenticalCards {
-		return CombinationThreeOfAKind
-	} else if twoIdenticalCards > 1 {
-		return CombinationTwoPair
-	} else if twoIdenticalCards > 0 {
-		return CombinationOnePair
-	} else if twoIdenticalCards == 0 {
-		return CombinationHighCard
+	if nbJokers == 0 {
+		if threeIdenticalCards && twoIdenticalCards > 0 {
+			return CombinationFullHouse
+		} else if threeIdenticalCards {
+			return CombinationThreeOfAKind
+		} else if twoIdenticalCards == 2 {
+			return CombinationTwoPair
+		} else if twoIdenticalCards == 1 {
+			return CombinationOnePair
+		} else if twoIdenticalCards == 0 {
+			return CombinationHighCard
+		} else {
+			log.Fatalf("Invalid combination with 0 jokers: %v", cardsCount)
+		}
+	} else if nbJokers == 1 {
+		if threeIdenticalCards {
+			return CombinationFourOfAKind
+		} else if twoIdenticalCards == 2 {
+			return CombinationFullHouse
+		} else if twoIdenticalCards == 1 {
+			return CombinationThreeOfAKind
+		} else if twoIdenticalCards == 0 {
+			return CombinationOnePair
+		} else {
+			log.Fatalf("Invalid combination with 1 jokers: %v", cardsCount)
+		}
+	} else if nbJokers == 2 {
+		if threeIdenticalCards {
+			return CombinationFiveOfAKind
+		} else if twoIdenticalCards == 2 {
+			log.Fatalf("Invalid combination with 2 jokers: %v", cardsCount)
+		} else if twoIdenticalCards == 1 {
+			return CombinationFourOfAKind
+		} else if twoIdenticalCards == 0 {
+			return CombinationThreeOfAKind
+		} else {
+			log.Fatalf("Invalid combination with 2 jokers: %v", cardsCount)
+		}
+	} else if nbJokers == 3 {
+		if twoIdenticalCards == 1 {
+			return CombinationFiveOfAKind
+		} else {
+			return CombinationFourOfAKind
+		}
+	} else if nbJokers == 4 || nbJokers == 5 {
+		return CombinationFiveOfAKind
 	}
+
 	log.Fatalf("Invalid combination: %v", cardsCount)
 	return -1
 }
@@ -225,6 +269,9 @@ func parseInput(input io.Reader) []Hand {
 func getResult(input io.Reader) int64 {
 	hands := parseInput(input)
 	sort.SliceStable(hands, func(i, j int) bool {
+		if hands[i].Score() == hands[j].Score() {
+			log.Fatalf("Two hands with the same score: %s / %s", hands[i].String(), hands[j].String())
+		}
 		return hands[i].Score() < hands[j].Score()
 	})
 	var results int64
