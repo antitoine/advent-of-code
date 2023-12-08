@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-type goRight = bool
+type GoRight = bool
 
-func parseDirections(directionStr string) []goRight {
-	directions := make([]goRight, len(directionStr))
+func parseDirections(directionStr string) []GoRight {
+	directions := make([]GoRight, len(directionStr))
 	for i, direction := range directionStr {
 		directions[i] = direction == 'R'
 	}
 	return directions
 }
 
-var nodeRegex = regexp.MustCompile(`^([A-Z]+) = \(([A-Z]+), ([A-Z]+)\)$`)
+var nodeRegex = regexp.MustCompile(`^([1-9A-Z]+) = \(([1-9A-Z]+), ([1-9A-Z]+)\)$`)
 
 func parseNodes(nodesStr string) (string, string, string) {
 	matches := nodeRegex.FindStringSubmatch(nodesStr)
@@ -30,12 +30,13 @@ func parseNodes(nodesStr string) (string, string, string) {
 }
 
 type Node struct {
-	name  string
-	left  *Node
-	right *Node
+	prefixName string
+	endingName string
+	left       *Node
+	right      *Node
 }
 
-func parseInput(input io.Reader) ([]goRight, map[string]*Node) {
+func parseInput(input io.Reader) ([]GoRight, map[string]*Node, []string) {
 	scanner := bufio.NewScanner(input)
 	if !scanner.Scan() {
 		log.Fatalf("Unable to read first line")
@@ -45,44 +46,90 @@ func parseInput(input io.Reader) ([]goRight, map[string]*Node) {
 		log.Fatalf("Unable to read second line")
 	}
 	nodes := make(map[string]*Node)
+	var startingNodes []string
 	for scanner.Scan() {
 		name, leftName, rightName := parseNodes(scanner.Text())
+		prefixName := name[0:2]
+		endingName := name[2:]
 		currentNode, currentNodeFound := nodes[name]
 		if !currentNodeFound {
-			currentNode = &Node{name: name}
+			currentNode = &Node{prefixName: prefixName, endingName: endingName}
 			nodes[name] = currentNode
+		}
+		if endingName == "A" {
+			startingNodes = append(startingNodes, name)
 		}
 		leftNode, leftNodeFound := nodes[leftName]
 		if !leftNodeFound {
-			leftNode = &Node{name: leftName}
+			prefixLeftNodeName := leftName[0:2]
+			endingLeftNodeName := leftName[2:]
+			leftNode = &Node{prefixName: prefixLeftNodeName, endingName: endingLeftNodeName}
 			nodes[leftName] = leftNode
 		}
 		rightNode, rightNodeFound := nodes[rightName]
 		if !rightNodeFound {
-			rightNode = &Node{name: rightName}
+			prefixRightNodeName := rightName[0:2]
+			endingRightNodeName := rightName[2:]
+			rightNode = &Node{prefixName: prefixRightNodeName, endingName: endingRightNodeName}
 			nodes[rightName] = rightNode
 		}
 		currentNode.left = nodes[leftName]
 		currentNode.right = nodes[rightName]
 	}
-	return directions, nodes
+	return directions, nodes, startingNodes
+}
+
+type Track struct {
+	currentNode   *Node
+	requireNbStep *int64
+}
+
+func greatestCommonDivisor(a, b int64) int64 {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+func leastCommonMultiple(a, b int64) int64 {
+	return a * b / greatestCommonDivisor(a, b)
 }
 
 func getResult(input io.Reader) int64 {
-	directions, nodes := parseInput(input)
-	currentNode, startingNodeFound := nodes["AAA"]
-	if !startingNodeFound {
-		log.Fatalf("Unable to find starting node")
-	}
-	var step int64
-	for step = 0; currentNode.name != "ZZZ"; step++ {
-		if directions[step%int64(len(directions))] {
-			currentNode = currentNode.right
+	directions, nodes, startingNodes := parseInput(input)
+	tracksNotCompleted := make([]*Node, len(startingNodes))
+	for i, startingNode := range startingNodes {
+		if node, ok := nodes[startingNode]; !ok {
+			log.Fatalf("Unable to find starting node %s", startingNode)
 		} else {
-			currentNode = currentNode.left
+			tracksNotCompleted[i] = node
 		}
 	}
-	return step
+	var minRequiredSteps []int64
+	var step int64
+	for step = 0; len(tracksNotCompleted) > 0; step++ {
+		goRight := directions[step%int64(len(directions))]
+		for i := 0; i < len(tracksNotCompleted); {
+			if goRight {
+				tracksNotCompleted[i] = tracksNotCompleted[i].right
+			} else {
+				tracksNotCompleted[i] = tracksNotCompleted[i].left
+			}
+			if tracksNotCompleted[i].endingName == "Z" {
+				minRequiredSteps = append(minRequiredSteps, step+1)
+				tracksNotCompleted = append(tracksNotCompleted[:i], tracksNotCompleted[i+1:]...)
+				continue
+			}
+			i++
+		}
+	}
+	minRequiredStep := int64(1)
+	for _, steps := range minRequiredSteps {
+		minRequiredStep = leastCommonMultiple(minRequiredStep, steps)
+	}
+	return minRequiredStep
 }
 
 func main() {
