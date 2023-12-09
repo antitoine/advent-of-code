@@ -52,7 +52,7 @@ func derivative(numbers []int64) ([]int64, bool) {
 	return derivativeNumbers, onlyZeros
 }
 
-func extrapolate(numbers []int64) int64 {
+func extrapolateForward(numbers []int64) int64 {
 	if len(numbers) == 0 {
 		log.Fatalf("Unable to extrapolate empty numbers")
 		return 0
@@ -61,14 +61,35 @@ func extrapolate(numbers []int64) int64 {
 	if onlyZeros {
 		return numbers[len(numbers)-1]
 	} else {
-		return numbers[len(numbers)-1] + extrapolate(derivativeNumbers)
+		return numbers[len(numbers)-1] + extrapolateForward(derivativeNumbers)
 	}
 }
 
-func getResult(input io.Reader) int64 {
+func extrapolateBackward(numbers []int64) int64 {
+	if len(numbers) == 0 {
+		log.Fatalf("Unable to extrapolate empty numbers")
+		return 0
+	}
+	derivativeNumbers, onlyZeros := derivative(numbers)
+	if onlyZeros {
+		return numbers[0]
+	} else {
+		return numbers[0] - extrapolateBackward(derivativeNumbers)
+	}
+}
+
+func getResultPart1(input io.Reader) int64 {
 	var result int64
 	for _, numbers := range parseInput(input) {
-		result += extrapolate(numbers)
+		result += extrapolateForward(numbers)
+	}
+	return result
+}
+
+func getResultPart2(input io.Reader) int64 {
+	var result int64
+	for _, numbers := range parseInput(input) {
+		result += extrapolateBackward(numbers)
 	}
 	return result
 }
@@ -86,7 +107,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile)
+	result := getResultPart2(inputFile)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
