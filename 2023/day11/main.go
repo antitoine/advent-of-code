@@ -50,23 +50,23 @@ func parseInput(input io.Reader) ([]Point, []int, []int) {
 	return galaxies, emptyX, emptyY
 }
 
-func getDistance(galaxyA, galaxyB Point, emptyX []int, emptyY []int) int64 {
+func getDistance(galaxyA, galaxyB Point, emptyX []int, emptyY []int, emptyFactor float64) int64 {
 	xDistance := math.Abs(float64(galaxyB.x) - float64(galaxyA.x))
 	for _, x := range emptyX {
 		if (galaxyA.x < x && x < galaxyB.x) || (galaxyA.x > x && x > galaxyB.x) {
-			xDistance++
+			xDistance += emptyFactor - 1
 		}
 	}
 	yDistance := math.Abs(float64(galaxyB.y) - float64(galaxyA.y))
 	for _, y := range emptyY {
 		if (galaxyA.y < y && y < galaxyB.y) || (galaxyA.y > y && y > galaxyB.y) {
-			yDistance++
+			yDistance += emptyFactor - 1
 		}
 	}
 	return int64(xDistance + yDistance)
 }
 
-func getResult(input io.Reader) int64 {
+func getResult(input io.Reader, emptyFactor float64) int64 {
 	galaxies, emptyX, emptyY := parseInput(input)
 	var distances int64
 	for i, galaxyA := range galaxies {
@@ -74,7 +74,7 @@ func getResult(input io.Reader) int64 {
 			if galaxyA.x == galaxyB.x && galaxyA.y == galaxyB.y {
 				continue
 			}
-			distances += getDistance(galaxyA, galaxyB, emptyX, emptyY)
+			distances += getDistance(galaxyA, galaxyB, emptyX, emptyY, emptyFactor)
 		}
 	}
 	return distances
@@ -93,7 +93,8 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile)
+	emptyFactor := float64(1000000)
+	result := getResult(inputFile, emptyFactor)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))

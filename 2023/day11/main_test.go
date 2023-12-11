@@ -6,7 +6,8 @@ import (
 )
 
 func TestGetResults(t *testing.T) {
-	input := `...#......
+	t.Run("part1", func(t *testing.T) {
+		input := `...#......
 .......#..
 #.........
 ..........
@@ -18,10 +19,29 @@ func TestGetResults(t *testing.T) {
 #...#.....
 `
 
-	result := getResult(strings.NewReader(input))
-	if result != 374 {
-		t.Errorf("Expected result to be 374, got %d", result)
-	}
+		result := getResult(strings.NewReader(input), 2.0)
+		if result != 374 {
+			t.Errorf("Expected result to be 374, got %d", result)
+		}
+	})
+	t.Run("part2", func(t *testing.T) {
+		input := `...#......
+.......#..
+#.........
+..........
+......#...
+.#........
+.........#
+..........
+.......#..
+#...#.....
+`
+
+		result := getResult(strings.NewReader(input), 100)
+		if result != 8410 {
+			t.Errorf("Expected result to be 8410, got %d", result)
+		}
+	})
 }
 
 func BenchmarkGetResult(b *testing.B) {
@@ -39,7 +59,7 @@ func BenchmarkGetResult(b *testing.B) {
 `
 
 		for n := 0; n < b.N; n++ {
-			getResult(strings.NewReader(input))
+			getResult(strings.NewReader(input), 2.0)
 		}
 	})
 
@@ -48,7 +68,7 @@ func BenchmarkGetResult(b *testing.B) {
 		defer inputFile.Close()
 
 		for n := 0; n < b.N; n++ {
-			getResult(inputFile)
+			getResult(inputFile, 2.0)
 		}
 	})
 }
