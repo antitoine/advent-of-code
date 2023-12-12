@@ -16,8 +16,8 @@ func TestGetResults(t *testing.T) {
 `
 
 		result := getResult(strings.NewReader(input))
-		if result != 21 {
-			t.Errorf("Expected result to be 21, got %d", result)
+		if result != 525152 {
+			t.Errorf("Expected result to be 525152, got %d", result)
 		}
 	})
 	t.Run("line 1", func(t *testing.T) {
@@ -34,8 +34,8 @@ func TestGetResults(t *testing.T) {
 `
 
 		result := getResult(strings.NewReader(input))
-		if result != 4 {
-			t.Errorf("Expected result to be 4, got %d, for line %s", result, input)
+		if result != 16384 {
+			t.Errorf("Expected result to be 16384, got %d, for line %s", result, input)
 		}
 	})
 	t.Run("line 3", func(t *testing.T) {
@@ -52,8 +52,8 @@ func TestGetResults(t *testing.T) {
 `
 
 		result := getResult(strings.NewReader(input))
-		if result != 1 {
-			t.Errorf("Expected result to be 1, got %d, for line %s", result, input)
+		if result != 16 {
+			t.Errorf("Expected result to be 16, got %d, for line %s", result, input)
 		}
 	})
 	t.Run("line 5", func(t *testing.T) {
@@ -61,8 +61,8 @@ func TestGetResults(t *testing.T) {
 `
 
 		result := getResult(strings.NewReader(input))
-		if result != 4 {
-			t.Errorf("Expected result to be 4, got %d, for line %s", result, input)
+		if result != 2500 {
+			t.Errorf("Expected result to be 2500, got %d, for line %s", result, input)
 		}
 	})
 	t.Run("line 6", func(t *testing.T) {
@@ -70,8 +70,8 @@ func TestGetResults(t *testing.T) {
 `
 
 		result := getResult(strings.NewReader(input))
-		if result != 10 {
-			t.Errorf("Expected result to be 10, got %d, for line %s", result, input)
+		if result != 506250 {
+			t.Errorf("Expected result to be 506250, got %d, for line %s", result, input)
 		}
 	})
 }

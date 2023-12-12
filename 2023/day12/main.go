@@ -28,30 +28,42 @@ func parseInput(input io.Reader) []Line {
 		}
 
 		states := strings.Split(lineSplit[0], "")
-		springs := make([]isSpringDamaged, len(states))
+		initSprings := make([]isSpringDamaged, len(states))
 		for i, state := range states {
 			if state == "?" {
-				springs[i] = nil
+				initSprings[i] = nil
 			} else {
 				isDamaged := state == "#"
-				springs[i] = &isDamaged
+				initSprings[i] = &isDamaged
 			}
+		}
+		springs := make([]isSpringDamaged, 4+(len(initSprings)*5))
+		springs = initSprings
+		for i := 0; i < 4; i++ {
+			springs = append(append(springs, nil), initSprings...)
 		}
 
 		numbers := strings.Split(lineSplit[1], ",")
-		counters := make([]int64, len(numbers))
+		initCounters := make([]int64, len(numbers))
 		for i, number := range numbers {
 			counter, errParsing := strconv.ParseInt(number, 10, 64)
 			if errParsing != nil {
 				log.Fatalf("Unable to parse input line provided '%s' for counter number '%s': %v", line, number, errParsing)
 			}
-			counters[i] = counter
+			initCounters[i] = counter
+		}
+		counters := make([]int64, len(initSprings)*5)
+		counters = initCounters
+		for i := 0; i < 4; i++ {
+			counters = append(counters, initCounters...)
 		}
 
-		lines = append(lines, Line{
+		lineStruct := Line{
 			isSpringsDamaged:       springs,
 			damagedSpringsCounters: counters,
-		})
+		}
+
+		lines = append(lines, lineStruct)
 	}
 
 	if errScanningFile := scanner.Err(); errScanningFile != nil {
@@ -81,12 +93,19 @@ func (l Line) String() string {
 	return result.String()
 }
 
+var stateToArrangements = make(map[string]int64)
+
 func getNumberOfArrangements(line Line) int64 {
+	if arrangements, found := stateToArrangements[line.String()]; found {
+		return arrangements
+	}
+
 	isSpringsDamaged, damagedSpringsCounters := line.isSpringsDamaged, line.damagedSpringsCounters
 
 	//log.Printf("Compute arrangements for line: %s", line.String())
 
 	if len(isSpringsDamaged) == 0 {
+		stateToArrangements[line.String()] = 0
 		return 0
 	}
 	var i int
@@ -125,6 +144,7 @@ func getNumberOfArrangements(line Line) int64 {
 		}
 	}
 	//log.Printf("Get %d arrangements for line: %s", numberOfArrangements, line.String())
+	stateToArrangements[line.String()] = numberOfArrangements
 	return numberOfArrangements
 }
 
