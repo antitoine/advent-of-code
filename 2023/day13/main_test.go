@@ -24,8 +24,8 @@ func TestGetResults(t *testing.T) {
 `
 
 	result := getResult(strings.NewReader(input))
-	if result != 405 {
-		t.Errorf("Expected result to be 405, got %d", result)
+	if result != 400 {
+		t.Errorf("Expected result to be 400, got %d", result)
 	}
 }
 

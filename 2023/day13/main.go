@@ -23,26 +23,31 @@ func transpose(grid [][]int64) [][]int64 {
 	return result
 }
 
-func isEqual(line1 []int64, line2 []int64) bool {
+func isEqual(line1 []int64, line2 []int64, maxDiff int64) (bool, int64) {
+	diffLeft := maxDiff
 	for i := range line1 {
 		if line1[i] != line2[i] {
-			return false
+			if diffLeft <= 0 {
+				return false, 0
+			} else {
+				diffLeft--
+			}
 		}
 	}
-	return true
+	return true, diffLeft
 }
 
-func getReflectionScoreForLines(grid [][]int64) int64 {
+func getReflectionScoreForLines(grid [][]int64, maxDiff int64) int64 {
 	for i, j := 0, 1; j < len(grid); i, j = i+1, j+1 {
-		if isEqual(grid[i], grid[j]) {
+		if equals, diffLeft := isEqual(grid[i], grid[j], maxDiff); equals {
 			found := true
-			for k := 0; i-k >= 0 && j+k < len(grid); k++ {
-				if !isEqual(grid[i-k], grid[j+k]) {
+			for k := 1; i-k >= 0 && j+k < len(grid); k++ {
+				if equals, diffLeft = isEqual(grid[i-k], grid[j+k], diffLeft); !equals {
 					found = false
 					break
 				}
 			}
-			if found {
+			if found && diffLeft == 0 {
 				return int64(i) + 1
 			}
 		}
@@ -51,13 +56,13 @@ func getReflectionScoreForLines(grid [][]int64) int64 {
 }
 
 func getReflectionScore(grid [][]int64) int64 {
-	result := getReflectionScoreForLines(grid)
-	if result > 0 {
-		return result * 100
+	horizontalReflectionScore := getReflectionScoreForLines(grid, 1)
+	if horizontalReflectionScore > 0 {
+		return horizontalReflectionScore * 100
 	}
-	result = getReflectionScoreForLines(transpose(grid))
-	if result > 0 {
-		return result
+	verticalReflectionScore := getReflectionScoreForLines(transpose(grid), 1)
+	if verticalReflectionScore > 0 {
+		return verticalReflectionScore
 	}
 	log.Fatalf("Unable to find a reflection score for the grid: %v", grid)
 	return 0
