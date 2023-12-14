@@ -19,8 +19,8 @@ O.#..O.#.#
 `
 
 	result := getResult(strings.NewReader(input))
-	if result != 136 {
-		t.Errorf("Expected result to be 136, got %d", result)
+	if result != 64 {
+		t.Errorf("Expected result to be 64, got %d", result)
 	}
 }
 

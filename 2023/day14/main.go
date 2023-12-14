@@ -65,7 +65,25 @@ func tiltingTheLever(platform Platform) Platform {
 	return platform
 }
 
+// rotate returns the same platform rotated 90 degrees clockwise
+func rotate(platform Platform) Platform {
+	var rotatedPlatform Platform
+	for columnIdx := 0; columnIdx < len(platform[0]); columnIdx++ {
+		var row []Place
+		for rowIdx := len(platform) - 1; rowIdx >= 0; rowIdx-- {
+			row = append(row, platform[rowIdx][columnIdx])
+		}
+		rotatedPlatform = append(rotatedPlatform, row)
+	}
+	return rotatedPlatform
+}
+
+var loadMemory = make(map[string]int)
+
 func computeLoad(platform Platform) int {
+	if load, ok := loadMemory[platform.String()]; ok {
+		return load
+	}
 	var load int
 	for rowIdx := 0; rowIdx < len(platform); rowIdx++ {
 		for _, place := range platform[rowIdx] {
@@ -74,15 +92,54 @@ func computeLoad(platform Platform) int {
 			}
 		}
 	}
+	loadMemory[platform.String()] = load
 	return load
 }
 
+var cycleMemory = make(map[string]Platform)
+
+func cycle(initPlatform Platform) Platform {
+	if platform, ok := cycleMemory[initPlatform.String()]; ok {
+		return platform
+	}
+	platform := tiltingTheLever(initPlatform)    // tilt north
+	platform = tiltingTheLever(rotate(platform)) // tilt west
+	platform = tiltingTheLever(rotate(platform)) // tilt south
+	platform = tiltingTheLever(rotate(platform)) // tilt east
+	platform = rotate(platform)                  // get initial position
+	cycleMemory[initPlatform.String()] = platform
+	return platform
+}
+
+var platformIdxMemory = make(map[string]int)
+
 func getResult(input io.Reader) int {
-	platform := parseInput(input)
-	//log.Printf("Initial platform:\n%s", platform)
-	tiltedPlatform := tiltingTheLever(platform)
-	//log.Printf("Tilted platform:\n%s", tiltedPlatform)
-	return computeLoad(tiltedPlatform)
+	initPlatform := parseInput(input)
+
+	platform := initPlatform
+	var cycleStart int
+	var cycleEnd int
+
+	for i := 0; i < 1000000000; i++ {
+		platform = cycle(platform)
+
+		if existingIdx, found := platformIdxMemory[platform.String()]; found {
+			cycleStart = existingIdx
+			cycleEnd = i
+			break
+		}
+		platformIdxMemory[platform.String()] = i
+	}
+	cycleLength := cycleEnd - cycleStart
+
+	remainingIterations := 1000000000 - cycleEnd - 1
+	remainingCycles := remainingIterations % cycleLength
+	for i := 0; i < remainingCycles; i++ {
+		platform = cycle(platform)
+	}
+
+	log.Printf("Final platform:\n%s", platform)
+	return computeLoad(platform)
 }
 
 func loadFile() *os.File {
