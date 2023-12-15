@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,9 @@ func hash(input string) int64 {
 		if char == '\n' {
 			continue
 		}
+		if char == '=' || char == '-' {
+			break
+		}
 		result += ascii(char)
 		result *= 17
 		result = result % 256
@@ -26,13 +30,55 @@ func hash(input string) int64 {
 	return result
 }
 
-func parseInput(input io.Reader) int64 {
+type Action int
+
+const (
+	OperationSet    Action = iota
+	OperationRemove Action = iota
+)
+
+type Operation struct {
+	Key     string
+	KeyHash int64
+	Value   int64
+	Action  Action
+}
+
+func parseInput(input io.Reader) []Operation {
 	scanner := bufio.NewScanner(input)
 
-	var result int64
+	var result []Operation
 	for scanner.Scan() {
 		for _, step := range strings.Split(scanner.Text(), ",") {
-			result += hash(step)
+			if step == "\n" {
+				continue
+			}
+			if strings.HasSuffix(step, "-") {
+				key := step[:len(step)-1]
+				result = append(result, Operation{
+					Key:     key,
+					KeyHash: hash(key),
+					Action:  OperationRemove,
+				})
+			} else {
+				parts := strings.Split(step, "=")
+				if len(parts) != 2 {
+					log.Fatalf("Unable to parse step: %s", step)
+					return nil
+				}
+				key := parts[0]
+				value, errParsingInt := strconv.ParseInt(parts[1], 10, 64)
+				if errParsingInt != nil {
+					log.Fatalf("Unable to parse value: %s", parts[1])
+					return nil
+				}
+				result = append(result, Operation{
+					Key:     key,
+					KeyHash: hash(key),
+					Value:   value,
+					Action:  OperationSet,
+				})
+			}
 		}
 	}
 
@@ -43,8 +89,74 @@ func parseInput(input io.Reader) int64 {
 	return result
 }
 
+type Slot struct {
+	Idx   int
+	Value int64
+}
+
+type Box struct {
+	SlotByKey map[string]*Slot
+	SlotByIdx []*Slot
+}
+
+func (b *Box) Set(key string, value int64) {
+	if slot, ok := b.SlotByKey[key]; ok {
+		slot.Value = value
+	} else {
+		lastSlotIdx := len(b.SlotByIdx)
+		newSlot := &Slot{
+			Idx:   lastSlotIdx,
+			Value: value,
+		}
+		b.SlotByKey[key] = newSlot
+		b.SlotByIdx = append(b.SlotByIdx, newSlot)
+	}
+}
+
+func (b *Box) Remove(key string) {
+	if slot, ok := b.SlotByKey[key]; ok {
+		delete(b.SlotByKey, key)
+		newSlotByIdx := make([]*Slot, len(b.SlotByIdx)-1)
+		for i := 0; i < slot.Idx; i++ {
+			newSlotByIdx[i] = b.SlotByIdx[i]
+		}
+		for i := slot.Idx + 1; i < len(b.SlotByIdx); i++ {
+			b.SlotByIdx[i].Idx--
+			newSlotByIdx[i-1] = b.SlotByIdx[i]
+		}
+		b.SlotByIdx = newSlotByIdx
+	}
+}
+
+func (b *Box) FocusPower(boxIdx int64) int64 {
+	var result int64
+	for _, slot := range b.SlotByIdx {
+		result += (boxIdx + 1) * int64(slot.Idx+1) * slot.Value
+	}
+	return result
+}
+
 func getResult(input io.Reader) int64 {
-	return parseInput(input)
+	box := make([]Box, 256)
+	for i := 0; i < 256; i++ {
+		box[i] = Box{
+			SlotByKey: make(map[string]*Slot),
+		}
+	}
+	operations := parseInput(input)
+	for _, operation := range operations {
+		if operation.Action == OperationSet {
+			box[operation.KeyHash].Set(operation.Key, operation.Value)
+		} else {
+			box[operation.KeyHash].Remove(operation.Key)
+		}
+	}
+
+	var focusPower int64
+	for i := int64(0); i < 256; i++ {
+		focusPower += box[i].FocusPower(i)
+	}
+	return focusPower
 }
 
 func loadFile() *os.File {

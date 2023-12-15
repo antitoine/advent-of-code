@@ -10,8 +10,8 @@ func TestGetResults(t *testing.T) {
 `
 
 	result := getResult(strings.NewReader(input))
-	if result != 1320 {
-		t.Errorf("Expected result to be 1320, got %d", result)
+	if result != 145 {
+		t.Errorf("Expected result to be 145, got %d", result)
 	}
 }
 
