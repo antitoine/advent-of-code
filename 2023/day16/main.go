@@ -33,6 +33,11 @@ func (c *Cell) IsEnergized() bool {
 	return c.energized
 }
 
+func (c *Cell) Reset() {
+	c.visited = nil
+	c.energized = false
+}
+
 func (c *Cell) NextDirection(direction Direction) []Direction {
 	switch c.symbol {
 	case '.':
@@ -80,6 +85,14 @@ type Graph [][]*Cell
 
 func (g Graph) GetCell(position Position) *Cell {
 	return g[position.row][position.column]
+}
+
+func (g Graph) Reset() {
+	for _, row := range g {
+		for _, cell := range row {
+			cell.Reset()
+		}
+	}
 }
 
 func (g Graph) SymbolGraph() string {
@@ -181,9 +194,32 @@ func getCountOfEnergizedCells(graph Graph, position Position, direction Directio
 func getResult(input io.Reader) int64 {
 	graph := parseInput(input)
 	//log.Printf("Initial graph:\n%s", graph.SymbolGraph())
-	energizedCells := getCountOfEnergizedCells(graph, Position{0, 0}, right)
-	//log.Printf("Energized graph:\n%s", graph.EnergizedGraph())
-	return energizedCells
+	maxEnergizedCells := int64(-1)
+	for rowIdx := 0; rowIdx < len(graph); rowIdx++ {
+		for columnIdx := 0; columnIdx < len(graph[rowIdx]); columnIdx++ {
+			var directions []Direction
+			if rowIdx == 0 {
+				directions = append(directions, down)
+			}
+			if rowIdx == len(graph)-1 {
+				directions = append(directions, up)
+			}
+			if columnIdx == 0 {
+				directions = append(directions, right)
+			}
+			if columnIdx == len(graph[rowIdx])-1 {
+				directions = append(directions, left)
+			}
+			for _, direction := range directions {
+				energizedCells := getCountOfEnergizedCells(graph, Position{rowIdx, columnIdx}, direction)
+				if energizedCells > maxEnergizedCells {
+					maxEnergizedCells = energizedCells
+				}
+				graph.Reset()
+			}
+		}
+	}
+	return maxEnergizedCells
 }
 
 func loadFile() *os.File {
