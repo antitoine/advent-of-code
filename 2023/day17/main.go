@@ -158,7 +158,8 @@ func (v VisitedSet) IsVisited(step *Step) bool {
 	return exists
 }
 
-const maxStraightDistance = 3
+const minStraightDistance = 4
+const maxStraightDistance = 10
 
 func getMinimumHeatLoss(grid Grid) uint64 {
 	stepQueue := StepQueue{}
@@ -176,7 +177,10 @@ func getMinimumHeatLoss(grid Grid) uint64 {
 		}
 
 		if step.position.i == len(grid)-1 && step.position.j == len(grid[0])-1 {
-			return step.heatLoss
+			if step.currentStraightLength >= minStraightDistance {
+				return step.heatLoss
+			}
+			continue
 		}
 
 		// If we could move in the same direction, do it
@@ -186,14 +190,16 @@ func getMinimumHeatLoss(grid Grid) uint64 {
 			}
 		}
 
-		// Try turning left
-		if newStep, allowed := step.Move(grid, step.direction.TurnLeft(), true); allowed {
-			heap.Push(&stepQueue, newStep)
-		}
+		if step.currentStraightLength >= minStraightDistance {
+			// Try turning left
+			if newStep, allowed := step.Move(grid, step.direction.TurnLeft(), true); allowed {
+				heap.Push(&stepQueue, newStep)
+			}
 
-		// Try turning right
-		if newStep, allowed := step.Move(grid, step.direction.TurnRight(), true); allowed {
-			heap.Push(&stepQueue, newStep)
+			// Try turning right
+			if newStep, allowed := step.Move(grid, step.direction.TurnRight(), true); allowed {
+				heap.Push(&stepQueue, newStep)
+			}
 		}
 	}
 
