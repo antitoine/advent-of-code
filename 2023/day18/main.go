@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-type Grid [][]rune
-
 type Direction int
 
 const (
@@ -40,52 +38,48 @@ func (p Position) Move(direction Direction) Position {
 	return p
 }
 
-var lineRegex = regexp.MustCompile(`^([UDLR]) (\d+) \((#[0-9a-f]{6})\)$`)
+var lineRegex = regexp.MustCompile(`^([UDLR]) (\d+) \(#([0-9a-f]{5})([0-9a-f])\)$`)
 
-func parseLine(line string) (Direction, int64, string) {
+func parseLine(line string) (Direction, int64) {
 	matches := lineRegex.FindStringSubmatch(line)
-	if matches == nil || len(matches) != 4 {
+	if matches == nil || len(matches) != 5 {
 		log.Fatalf("Unable to parse line: %s", line)
 	}
 
-	directionStr := matches[1]
-	var direction Direction
-	switch directionStr {
-	case "U":
-		direction = Up
-	case "D":
-		direction = Down
-	case "L":
-		direction = Left
-	case "R":
-		direction = Right
-	}
-	distance, errParsingDistance := strconv.ParseInt(matches[2], 10, 64)
+	distance, errParsingDistance := strconv.ParseInt(matches[3], 16, 64)
 	if errParsingDistance != nil {
 		log.Fatalf("Unable to parse distance: %s", matches[2])
 	}
-	color := matches[3]
-	return direction, distance, color
+
+	// 0 means R, 1 means D, 2 means L, and 3 means U.
+	directionStr := matches[4]
+	var direction Direction
+	switch directionStr {
+	case "0":
+		direction = Right
+	case "1":
+		direction = Down
+	case "2":
+		direction = Left
+	case "3":
+		direction = Up
+	}
+
+	return direction, distance
 }
 
-func parseInput(input io.Reader) ([]Position, map[Position]string, int64) {
+func parseInput(input io.Reader) ([]Position, int64) {
 	scanner := bufio.NewScanner(input)
 
 	var vertices []Position
-	colors := make(map[Position]string)
 	currentPosition := Position{0, 0}
 	vertices = append(vertices, currentPosition)
 	var boundaryPoints int64
 	for scanner.Scan() {
-		direction, distance, color := parseLine(scanner.Text())
+		direction, distance := parseLine(scanner.Text())
 		boundaryPoints += distance
 		for i := int64(0); i < distance; i++ {
-			if _, alreadyDug := colors[currentPosition]; !alreadyDug {
-				colors[currentPosition] = color
-			}
-			newPosition := currentPosition.Move(direction)
-			colors[newPosition] = color
-			currentPosition = newPosition
+			currentPosition = currentPosition.Move(direction)
 		}
 		vertices = append(vertices, currentPosition)
 	}
@@ -94,11 +88,11 @@ func parseInput(input io.Reader) ([]Position, map[Position]string, int64) {
 		log.Fatalf("Unable to scan the input file correctly: %v", errScanningFile)
 	}
 
-	return vertices, colors, boundaryPoints
+	return vertices, boundaryPoints
 }
 
 func getResult(input io.Reader) int64 {
-	vertices, _, boundaryPoints := parseInput(input)
+	vertices, boundaryPoints := parseInput(input)
 
 	// Compute area using the shoelace formula
 	// https://en.wikipedia.org/wiki/Shoelace_formula

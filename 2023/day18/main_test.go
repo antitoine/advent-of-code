@@ -21,7 +21,7 @@ L 2 (#015232)
 U 2 (#7a21e3)
 `
 
-const testingExpectedResult = 62
+const testingExpectedResult = 952408144115
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
