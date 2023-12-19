@@ -24,7 +24,7 @@ hdj{m>838:A,pv}
 {x=2127,m=1623,a=2188,s=1013}
 `
 
-const testingExpectedResult = 19114
+const testingExpectedResult = 167409079868000
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))

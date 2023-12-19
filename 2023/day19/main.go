@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -21,39 +22,50 @@ func (c Condition) String() string {
 	return c.key + c.operator + strconv.FormatInt(c.value, 10)
 }
 
-func (c Condition) Test(instruction Instruction) bool {
+func (c Condition) Apply(currentRange ApprovedInstructionRange) (ApprovedInstructionRange, ApprovedInstructionRange) {
+	ifTrueRange := currentRange
+	ifFalseRange := currentRange
 	switch c.key {
 	case "x":
 		switch c.operator {
 		case "<":
-			return instruction.x < c.value
+			// x<value
+			ifTrueRange.x.max = c.value - 1
+			// x>=value
+			ifFalseRange.x.min = c.value
 		case ">":
-			return instruction.x > c.value
+			ifTrueRange.x.min = c.value + 1
+			ifFalseRange.x.max = c.value
 		}
 	case "m":
 		switch c.operator {
 		case "<":
-			return instruction.m < c.value
+			ifTrueRange.m.max = c.value - 1
+			ifFalseRange.m.min = c.value
 		case ">":
-			return instruction.m > c.value
+			ifTrueRange.m.min = c.value + 1
+			ifFalseRange.m.max = c.value
 		}
 	case "a":
 		switch c.operator {
 		case "<":
-			return instruction.a < c.value
+			ifTrueRange.a.max = c.value - 1
+			ifFalseRange.a.min = c.value
 		case ">":
-			return instruction.a > c.value
+			ifTrueRange.a.min = c.value + 1
+			ifFalseRange.a.max = c.value
 		}
 	case "s":
 		switch c.operator {
 		case "<":
-			return instruction.s < c.value
+			ifTrueRange.s.max = c.value - 1
+			ifFalseRange.s.min = c.value
 		case ">":
-			return instruction.s > c.value
+			ifTrueRange.s.min = c.value + 1
+			ifFalseRange.s.max = c.value
 		}
 	}
-	log.Fatalf("Unable to check if instruction is approved: %s", c.String())
-	return false
+	return ifTrueRange, ifFalseRange
 }
 
 type Rule struct {
@@ -85,8 +97,12 @@ func NewRule(conditionStr string, ifTrueStr string, ifFalseStr string, otherWork
 	}
 }
 
-func (r *Rule) String() string {
-	return "if " + r.condition.String() + " { " + r.ifTrue.String() + " } else { " + r.ifFalse.String() + " }"
+func (r *Rule) String(indent string) string {
+	return indent + "if " + r.condition.String() + " {\n" +
+		r.ifTrue.String(indent+"  ") + "\n" +
+		indent + "} else {\n" +
+		r.ifFalse.String(indent+"  ") + "\n" +
+		indent + "}"
 }
 
 type Step struct {
@@ -127,27 +143,74 @@ func NewStep(workflowContent string, otherRawWorkflows RawWorkflows) *Step {
 	return nil
 }
 
-func (s *Step) String() string {
+func (s *Step) String(indent string) string {
 	if s.approved != nil {
 		if *s.approved {
-			return "A"
+			return indent + "A"
 		}
-		return "R"
+		return indent + "R"
 	}
-	return s.rule.String()
+	return s.rule.String(indent)
 }
 
-func (s *Step) IsApproved(instruction Instruction) bool {
+type Range struct {
+	min int64
+	max int64
+}
+
+type ApprovedInstructionRange struct {
+	x Range
+	m Range
+	a Range
+	s Range
+}
+
+const approvedInstructionRangeMin = 1
+const approvedInstructionRangeMax = 4000
+
+func NewApprovedInstructionRange() ApprovedInstructionRange {
+	return ApprovedInstructionRange{
+		x: Range{
+			min: approvedInstructionRangeMin,
+			max: approvedInstructionRangeMax,
+		},
+		m: Range{
+			min: approvedInstructionRangeMin,
+			max: approvedInstructionRangeMax,
+		},
+		a: Range{
+			min: approvedInstructionRangeMin,
+			max: approvedInstructionRangeMax,
+		},
+		s: Range{
+			min: approvedInstructionRangeMin,
+			max: approvedInstructionRangeMax,
+		},
+	}
+}
+
+func (r ApprovedInstructionRange) String() string {
+	return "{x=" + strconv.FormatInt(r.x.min, 10) + "," + strconv.FormatInt(r.x.max, 10) +
+		",m=" + strconv.FormatInt(r.m.min, 10) + "," + strconv.FormatInt(r.m.max, 10) +
+		",a=" + strconv.FormatInt(r.a.min, 10) + "," + strconv.FormatInt(r.a.max, 10) +
+		",s=" + strconv.FormatInt(r.s.min, 10) + "," + strconv.FormatInt(r.s.max, 10) + "}"
+}
+
+func (s *Step) ComputeListOfApprovedInstructionRange(currentRange ApprovedInstructionRange) []ApprovedInstructionRange {
 	if s.approved != nil {
-		return *s.approved
+		if *s.approved {
+			return []ApprovedInstructionRange{currentRange}
+		}
+		return nil
 	}
 	if s.rule == nil {
-		log.Fatalf("Unable to check step, approved and rule are nil: %s", s.String())
+		log.Fatalf("Unable to compute list of approved instruction range, approved and rule are nil: %s", s.String(""))
 	}
-	if s.rule.condition.Test(instruction) {
-		return s.rule.ifTrue.IsApproved(instruction)
-	}
-	return s.rule.ifFalse.IsApproved(instruction)
+	ifTrueRange, ifFalseRange := s.rule.condition.Apply(currentRange)
+	var result []ApprovedInstructionRange
+	result = append(result, s.rule.ifTrue.ComputeListOfApprovedInstructionRange(ifTrueRange)...)
+	result = append(result, s.rule.ifFalse.ComputeListOfApprovedInstructionRange(ifFalseRange)...)
+	return result
 }
 
 type RawWorkflows map[string]string
@@ -162,54 +225,7 @@ func parseRawWorkflow(line string) (string, string) {
 	return ruleMatches[1], ruleMatches[2]
 }
 
-type Instruction struct {
-	x int64
-	m int64
-	a int64
-	s int64
-}
-
-func (i Instruction) Sum() int64 {
-	return i.x + i.m + i.a + i.s
-}
-
-var instructionRegex = regexp.MustCompile(`^\{x=(\d+),m=(\d+),a=(\d+),s=(\d+)}$`)
-
-func parseInstruction(instructionStr string) Instruction {
-	instructionParts := instructionRegex.FindStringSubmatch(instructionStr)
-	if len(instructionParts) != 5 {
-		log.Fatalf("Unable to parse instruction: %s", instructionStr)
-	}
-
-	x, errParsingX := strconv.ParseInt(instructionParts[1], 10, 64)
-	if errParsingX != nil {
-		log.Fatalf("Unable to parse instruction x: %s (%v)", instructionStr, errParsingX)
-	}
-
-	m, errParsingM := strconv.ParseInt(instructionParts[2], 10, 64)
-	if errParsingM != nil {
-		log.Fatalf("Unable to parse instruction m: %s (%v)", instructionStr, errParsingM)
-	}
-
-	a, errParsingA := strconv.ParseInt(instructionParts[3], 10, 64)
-	if errParsingA != nil {
-		log.Fatalf("Unable to parse instruction a: %s (%v)", instructionStr, errParsingA)
-	}
-
-	s, errParsingS := strconv.ParseInt(instructionParts[4], 10, 64)
-	if errParsingS != nil {
-		log.Fatalf("Unable to parse instruction s: %s (%v)", instructionStr, errParsingS)
-	}
-
-	return Instruction{
-		x: x,
-		m: m,
-		a: a,
-		s: s,
-	}
-}
-
-func parseInput(input io.Reader) (RawWorkflows, []Instruction) {
+func parseInput(input io.Reader) RawWorkflows {
 	scanner := bufio.NewScanner(input)
 
 	rawWorkflows := make(RawWorkflows)
@@ -222,23 +238,33 @@ func parseInput(input io.Reader) (RawWorkflows, []Instruction) {
 		rawWorkflows[workflowKey] = workflowContent
 	}
 
-	var instructions []Instruction
-	for scanner.Scan() {
-		line := scanner.Text()
-		instructions = append(instructions, parseInstruction(line))
-	}
-
 	if errScanningFile := scanner.Err(); errScanningFile != nil {
 		log.Fatalf("Unable to scan the input file correctly: %v", errScanningFile)
 	}
 
-	return rawWorkflows, instructions
+	return rawWorkflows
 }
 
 const firstWorkflowKey = "in"
 
+func ComputeBreakPointForRanges(ranges []Range) []int64 {
+	result := make(map[int64]bool)
+	result[approvedInstructionRangeMin] = true
+	result[approvedInstructionRangeMax+1] = true
+	for _, r := range ranges {
+		result[r.min] = true
+		result[r.max+1] = true
+	}
+	var resultSlice []int64
+	for k := range result {
+		resultSlice = append(resultSlice, k)
+	}
+	slices.Sort(resultSlice)
+	return resultSlice
+}
+
 func getResult(input io.Reader) int64 {
-	rawWorkflows, instructions := parseInput(input)
+	rawWorkflows := parseInput(input)
 
 	firstWorkflowContent, firstWorkflowFound := rawWorkflows[firstWorkflowKey]
 	if !firstWorkflowFound {
@@ -246,17 +272,97 @@ func getResult(input io.Reader) int64 {
 	}
 
 	firstStep := NewStep(firstWorkflowContent, rawWorkflows)
-	//log.Printf("First step: \n   %s", firstStep.String())
+	//log.Printf("First step:\n%s", firstStep.String("  "))
 
-	log.Printf("Count of instructions: %d", len(instructions))
-	count := int64(0)
-	for _, instruction := range instructions {
-		if firstStep.IsApproved(instruction) {
-			count += instruction.Sum()
+	approvedInstructionRangeList := firstStep.ComputeListOfApprovedInstructionRange(NewApprovedInstructionRange())
+	//log.Printf("Found %d approved instruction ranges", len(approvedInstructionRangeList))
+	//for _, approvedInstructionRange := range approvedInstructionRangeList {
+	//	log.Printf("Approved instruction range: %s", approvedInstructionRange.String())
+	//}
+
+	var xRanges []Range
+	var mRanges []Range
+	var aRanges []Range
+	var sRanges []Range
+	for _, approvedInstructionRange := range approvedInstructionRangeList {
+		xRanges = append(xRanges, approvedInstructionRange.x)
+		mRanges = append(mRanges, approvedInstructionRange.m)
+		aRanges = append(aRanges, approvedInstructionRange.a)
+		sRanges = append(sRanges, approvedInstructionRange.s)
+	}
+
+	xBreakPoints := ComputeBreakPointForRanges(xRanges)
+	//log.Printf("Found %d x break points: %v", len(xBreakPoints), xBreakPoints)
+	mBreakPoints := ComputeBreakPointForRanges(mRanges)
+	//log.Printf("Found %d m break points: %v", len(mBreakPoints), mBreakPoints)
+	aBreakPoints := ComputeBreakPointForRanges(aRanges)
+	//log.Printf("Found %d a break points: %v", len(aBreakPoints), aBreakPoints)
+	sBreakPoints := ComputeBreakPointForRanges(sRanges)
+	//log.Printf("Found %d s break points: %v", len(sBreakPoints), sBreakPoints)
+
+	var result int64
+	for xIdx := 0; xIdx < len(xBreakPoints)-1; xIdx++ {
+		xMin := xBreakPoints[xIdx]
+		xMax := xBreakPoints[xIdx+1]
+
+		var stillValidInstructionsAfterX []ApprovedInstructionRange
+		for _, approvedInstructionRange := range approvedInstructionRangeList {
+			if approvedInstructionRange.x.min <= xMin && xMax <= approvedInstructionRange.x.max+1 {
+				stillValidInstructionsAfterX = append(stillValidInstructionsAfterX, approvedInstructionRange)
+			}
+		}
+		if len(stillValidInstructionsAfterX) == 0 {
+			continue
+		}
+
+		for mIdx := 0; mIdx < len(mBreakPoints)-1; mIdx++ {
+			mMin := mBreakPoints[mIdx]
+			mMax := mBreakPoints[mIdx+1]
+
+			var stillValidInstructionsAfterM []ApprovedInstructionRange
+			for _, approvedInstructionRange := range stillValidInstructionsAfterX {
+				if approvedInstructionRange.m.min <= mMin && mMax <= approvedInstructionRange.m.max+1 {
+					stillValidInstructionsAfterM = append(stillValidInstructionsAfterM, approvedInstructionRange)
+				}
+			}
+			if len(stillValidInstructionsAfterM) == 0 {
+				continue
+			}
+
+			for aIdx := 0; aIdx < len(aBreakPoints)-1; aIdx++ {
+				aMin := aBreakPoints[aIdx]
+				aMax := aBreakPoints[aIdx+1]
+
+				var stillValidInstructionsAfterA []ApprovedInstructionRange
+				for _, approvedInstructionRange := range stillValidInstructionsAfterM {
+					if approvedInstructionRange.a.min <= aMin && aMax <= approvedInstructionRange.a.max+1 {
+						stillValidInstructionsAfterA = append(stillValidInstructionsAfterA, approvedInstructionRange)
+					}
+				}
+				if len(stillValidInstructionsAfterA) == 0 {
+					continue
+				}
+
+				for sIdx := 0; sIdx < len(sBreakPoints)-1; sIdx++ {
+					sMin := sBreakPoints[sIdx]
+					sMax := sBreakPoints[sIdx+1]
+
+					foundS := false
+					for _, approvedInstructionRange := range stillValidInstructionsAfterA {
+						if approvedInstructionRange.s.min <= sMin && sMax <= approvedInstructionRange.s.max+1 {
+							foundS = true
+							break
+						}
+					}
+					if foundS {
+						result += (xMax - xMin) * (mMax - mMin) * (aMax - aMin) * (sMax - sMin)
+					}
+				}
+			}
 		}
 	}
 
-	return count
+	return result
 }
 
 func loadFile() *os.File {
