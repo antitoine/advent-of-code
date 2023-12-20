@@ -100,9 +100,9 @@ type Conjunction struct {
 	id              ModuleId
 }
 
-type DeclareModuleId func(ModuleId)
+type AttachModuleId func(ModuleId)
 
-func NewConjunction(id string, linkedTo []ModuleId) (*Conjunction, DeclareModuleId) {
+func NewConjunction(id string, linkedTo []ModuleId) (*Conjunction, AttachModuleId) {
 	module := &Conjunction{
 		alreadyReceived: make(map[ModuleId]Pulse),
 		to:              linkedTo,
@@ -172,6 +172,39 @@ func (b *Broadcast) GetId() ModuleId {
 	return b.id
 }
 
+type Sand struct {
+	id                ModuleId
+	parent            ModuleId
+	countOfLowPulses  int64
+	countOfHighPulses int64
+}
+
+func NewSand() (*Sand, AttachModuleId) {
+	module := &Sand{
+		id: ModuleId("rx"),
+	}
+	return module, func(moduleId ModuleId) {
+		module.parent = moduleId
+	}
+}
+
+func (s *Sand) Handle(input Input) Output {
+	if input.pulse == Low {
+		s.countOfLowPulses++
+	} else {
+		s.countOfHighPulses++
+	}
+	return Output{}
+}
+
+func (s *Sand) GetModuleOutputIds() []ModuleId {
+	return nil
+}
+
+func (s *Sand) GetId() ModuleId {
+	return s.id
+}
+
 func parseModuleIds(modulesStr string) []ModuleId {
 	modules := strings.Split(modulesStr, ", ")
 	moduleIds := make([]ModuleId, len(modules))
@@ -181,9 +214,9 @@ func parseModuleIds(modulesStr string) []ModuleId {
 	return moduleIds
 }
 
-func parseModule(line string) (Module, DeclareModuleId) {
+func parseModule(line string) (Module, AttachModuleId) {
 	var module Module
-	var declareModuleId DeclareModuleId
+	var declareModuleId AttachModuleId
 	if nextFlipFlopStr, foundFlipFlopPrefix := strings.CutPrefix(line, "%"); foundFlipFlopPrefix {
 		parts := strings.Split(nextFlipFlopStr, " -> ")
 		if len(parts) != 2 {
@@ -210,12 +243,18 @@ func parseBroadcast(line string) *Broadcast {
 	return NewBroadcast(parseModuleIds(modulesStr))
 }
 
-func parseInput(input io.Reader) (*Broadcast, map[ModuleId]Module) {
+func parseInput(input io.Reader) (*Broadcast, map[ModuleId]Module, *Sand) {
 	scanner := bufio.NewScanner(input)
 
 	var broadcast *Broadcast
 	modules := make(map[ModuleId]Module)
-	conjunctionsToUpdate := make(map[ModuleId]DeclareModuleId)
+
+	sand, setParentModule := NewSand()
+	modules[sand.GetId()] = sand
+
+	waitingAttachingParentModule := make(map[ModuleId]AttachModuleId)
+	waitingAttachingParentModule[sand.GetId()] = setParentModule
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "broadcaster ->") {
@@ -224,7 +263,7 @@ func parseInput(input io.Reader) (*Broadcast, map[ModuleId]Module) {
 			module, declareModuleId := parseModule(line)
 			modules[module.GetId()] = module
 			if declareModuleId != nil {
-				conjunctionsToUpdate[module.GetId()] = declareModuleId
+				waitingAttachingParentModule[module.GetId()] = declareModuleId
 			}
 		}
 	}
@@ -236,19 +275,21 @@ func parseInput(input io.Reader) (*Broadcast, map[ModuleId]Module) {
 	// Setup conjunctions modules
 	for moduleId, module := range modules {
 		for _, outputModuleId := range module.GetModuleOutputIds() {
-			if declareModuleIdFunc, found := conjunctionsToUpdate[outputModuleId]; found {
+			if declareModuleIdFunc, found := waitingAttachingParentModule[outputModuleId]; found {
 				declareModuleIdFunc(moduleId)
 			}
 		}
 	}
 
-	return broadcast, modules
+	return broadcast, modules, sand
 }
 
-func TriggerOnce(broadcast *Broadcast, modules map[ModuleId]Module) (int64, int64) {
+func TriggerOnce(broadcast *Broadcast, modules map[ModuleId]Module, moduleHighInputWatch *ModuleId) (int64, int64, []ModuleId) {
 	firstInput := NewInput(Low, broadcast.GetId())
 	countOfLowPulses := int64(1)
 	countOfHighPulses := int64(0)
+
+	var moduleHighInputDetected []ModuleId
 
 	tasks := make([][]Output, 1)
 	tasks = append(tasks, []Output{broadcast.Handle(firstInput)})
@@ -262,6 +303,9 @@ func TriggerOnce(broadcast *Broadcast, modules map[ModuleId]Module) (int64, int6
 			countOfLowPulses += newCountOfLowPulses
 			countOfHighPulses += newCountOfHighPulses
 			for forModuleId, input := range nextInputs {
+				if moduleHighInputWatch != nil && *moduleHighInputWatch == forModuleId && input.pulse == High {
+					moduleHighInputDetected = append(moduleHighInputDetected, output.from)
+				}
 				nextModule, found := modules[forModuleId]
 				if !found {
 					continue
@@ -277,20 +321,86 @@ func TriggerOnce(broadcast *Broadcast, modules map[ModuleId]Module) (int64, int6
 		}
 	}
 
-	return countOfLowPulses, countOfHighPulses
+	return countOfLowPulses, countOfHighPulses, moduleHighInputDetected
 }
 
-func getResult(text io.Reader) int64 {
-	broadcast, modules := parseInput(text)
+func getResultForPart1(text io.Reader) int64 {
+	broadcast, modules, _ := parseInput(text)
 	var countOfLowPulses, countOfHighPulses int64
-	for i := 0; i < 1000; i++ {
-		newCountOfLowPulses, newCountOfHighPulses := TriggerOnce(broadcast, modules)
+	for i := int64(0); i < 1000; i++ {
+		newCountOfLowPulses, newCountOfHighPulses, _ := TriggerOnce(broadcast, modules, nil)
 		countOfLowPulses += newCountOfLowPulses
 		countOfHighPulses += newCountOfHighPulses
 	}
 	log.Printf("Count of low pulses: %d", countOfLowPulses)
 	log.Printf("Count of high pulses: %d", countOfHighPulses)
 	return countOfLowPulses * countOfHighPulses
+}
+
+func allModulesStepsDetected(moduleIdsLowAfter map[ModuleId]int64) (bool, []int64) {
+	var result []int64
+	for _, after := range moduleIdsLowAfter {
+		if after == -1 {
+			return false, nil
+		}
+		result = append(result, after)
+	}
+	return true, result
+}
+
+func greatestCommonDivisor(a, b int64) int64 {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+func leastCommonMultiple(a, b int64) int64 {
+	return a * b / greatestCommonDivisor(a, b)
+}
+
+func getResultForPart2(text io.Reader) int64 {
+	broadcast, modules, sand := parseInput(text)
+
+	log.Printf("Broadcast: %#v", *broadcast)
+	log.Printf("Modules: %v", modules)
+	log.Printf("Sand: %#v", *sand)
+
+	parentSandModuleId := sand.parent
+	parentSandModule, foundParentSandModule := modules[parentSandModuleId]
+	if !foundParentSandModule {
+		log.Fatalf("Unable to find parent sand module: %s", parentSandModuleId)
+	}
+
+	log.Printf("Parent Sand module: %#v", parentSandModule)
+
+	moduleIdsWatching := make(map[ModuleId]int64)
+	for moduleId := range parentSandModule.(*Conjunction).alreadyReceived {
+		moduleIdsWatching[moduleId] = -1
+	}
+
+	log.Printf("Waiting modules IDs to be high: %#v", moduleIdsWatching)
+	isAllDetected, afters := allModulesStepsDetected(moduleIdsWatching)
+	for i := int64(1); !isAllDetected; i++ {
+		_, _, detected := TriggerOnce(broadcast, modules, &sand.parent)
+		for _, moduleId := range detected {
+			if moduleIdsWatching[moduleId] == -1 {
+				log.Printf("Module %s is high after %d steps", moduleId, i)
+				moduleIdsWatching[moduleId] = i
+			}
+		}
+		isAllDetected, afters = allModulesStepsDetected(moduleIdsWatching)
+	}
+
+	log.Printf("All modules are high after %#v steps", afters)
+
+	minRequiredStep := int64(1)
+	for _, steps := range afters {
+		minRequiredStep = leastCommonMultiple(minRequiredStep, steps)
+	}
+	return minRequiredStep
 }
 
 func loadFile() *os.File {
@@ -306,7 +416,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile)
+	result := getResultForPart2(inputFile)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
