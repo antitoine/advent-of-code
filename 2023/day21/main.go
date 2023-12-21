@@ -42,20 +42,48 @@ func (g Grid) isValidMove(position Position) bool {
 	return position.i >= 0 && position.i < rows && position.j >= 0 && position.j < cols && g[position.i][position.j] == '.'
 }
 
-func (g Grid) countReachablePositions(start Position, moves uint64) int64 {
+func modGrid(idx, length int64) int64 {
+	m := idx % length
+	if m < 0 {
+		m += length
+	}
+	return m
+}
+
+func (p Position) modulo(g Grid) Position {
+	return Position{
+		i: modGrid(p.i, int64(len(g))),
+		j: modGrid(p.j, int64(len(g[0]))),
+	}
+}
+
+func (g Grid) countReachablePositions(start Position, moves int, infiniteGrid bool) int64 {
 	directions := []Position{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
 
 	exploration := []Position{start}
+	prevExplorationSize := 0
+
+	var values []int
+	var delta1 []int
+	var delta2 []int
+
+	maxCompute := 1000
 
 	// BFS
 	movesLeft := moves
-	for movesLeft > 0 {
+	for i := 0; i < maxCompute && movesLeft > 0; i++ {
 		nextUniqueExploration := make(map[Position]bool)
 		for i := 0; i < len(exploration); i++ {
 			current := exploration[i]
 			for _, dir := range directions {
 				next := Position{current.i + dir.i, current.j + dir.j}
-				if g.isValidMove(next) {
+				var isValid bool
+				if infiniteGrid {
+					isValid = g.isValidMove(next.modulo(g))
+				} else {
+					isValid = g.isValidMove(next)
+				}
+				if isValid {
 					nextUniqueExploration[next] = true
 				}
 			}
@@ -64,16 +92,60 @@ func (g Grid) countReachablePositions(start Position, moves uint64) int64 {
 		for next := range nextUniqueExploration {
 			nextExploration = append(nextExploration, next)
 		}
+		newExplorationSize := len(nextExploration)
+		prevExplorationSize = len(exploration)
 		exploration = nextExploration
 		movesLeft--
+
+		values = append(values, newExplorationSize)
+		delta1 = append(delta1, newExplorationSize-prevExplorationSize)
+		if len(delta1) > len(g) {
+			delta2 = append(delta2, delta1[len(delta1)-1]-delta1[len(delta1)-1-len(g)])
+		} else {
+			delta2 = append(delta2, 0)
+		}
 	}
 
-	return int64(len(exploration))
+	if movesLeft <= 0 {
+		return int64(len(exploration))
+	}
+
+	restartAt := maxCompute - len(g)
+
+	values = values[:restartAt]
+	delta1 = delta1[:restartAt]
+	delta2 = delta2[:restartAt]
+
+	result := values[len(values)-1]
+	for i := restartAt + 1; i < moves+1; i++ {
+		delta2ForI := delta2[i-len(g)-1]
+		delta1ForI := delta1[i-len(g)-1] + delta2ForI
+		result += delta1ForI
+
+		delta1 = append(delta1, delta1ForI)
+		delta2 = append(delta2, delta2ForI)
+	}
+
+	return int64(result)
 }
 
-func getResultPart1(input io.Reader, moves uint64) int64 {
+func (g Grid) String() string {
+	var sb strings.Builder
+	for _, line := range g {
+		sb.WriteString(string(line))
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+func getResultPart1(input io.Reader, moves int) int64 {
 	grid, start := parseInput(input)
-	return grid.countReachablePositions(start, moves)
+	return grid.countReachablePositions(start, moves, false)
+}
+
+func getResultPart2(input io.Reader, moves int) int64 {
+	grid, start := parseInput(input)
+	return grid.countReachablePositions(start, moves, true)
 }
 
 func loadFile() *os.File {
@@ -89,7 +161,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResultPart1(inputFile, 64)
+	result := getResultPart2(inputFile, 26501365)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))

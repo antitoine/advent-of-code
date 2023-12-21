@@ -19,11 +19,20 @@ const testingInput = `...........
 `
 
 func TestGetResults(t *testing.T) {
-	const testingExpectedResult = 16
-	result := getResultPart1(strings.NewReader(testingInput), 6)
-	if result != testingExpectedResult {
-		t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
-	}
+	t.Run("part1", func(t *testing.T) {
+		const testingExpectedResult = 16
+		result := getResultPart1(strings.NewReader(testingInput), 6)
+		if result != testingExpectedResult {
+			t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		}
+	})
+	t.Run("part2", func(t *testing.T) {
+		const testingExpectedResult = 16733044
+		result := getResultPart2(strings.NewReader(testingInput), 5000)
+		if result != testingExpectedResult {
+			t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		}
+	})
 }
 
 func BenchmarkGetResult(b *testing.B) {
