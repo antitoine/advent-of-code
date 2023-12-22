@@ -14,26 +14,34 @@ const testingInput = `1,0,1~1,2,1
 1,1,8~1,1,9
 `
 
-const testingExpectedResult = 5
-
 func TestGetResults(t *testing.T) {
-	result := getResult(strings.NewReader(testingInput))
-	if result != testingExpectedResult {
-		t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
-	}
+	t.Run("part1", func(t *testing.T) {
+		const testingExpectedResult = 5
+		result := getResultPart1(strings.NewReader(testingInput))
+		if result != testingExpectedResult {
+			t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		}
+	})
+	t.Run("part2", func(t *testing.T) {
+		const testingExpectedResult = 7
+		result := getResultPart2(strings.NewReader(testingInput))
+		if result != testingExpectedResult {
+			t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		}
+	})
 }
 
 func BenchmarkGetResult(b *testing.B) {
 	b.Run("small", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
-			getResult(strings.NewReader(testingInput))
+			getResultPart1(strings.NewReader(testingInput))
 		}
 	})
 
 	b.Run("large", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			inputFile := loadFile()
-			getResult(inputFile)
+			getResultPart1(inputFile)
 			inputFile.Close()
 		}
 	})

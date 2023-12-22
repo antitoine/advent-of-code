@@ -53,6 +53,17 @@ func NewPlan() *Plan {
 	}
 }
 
+func (p *Plan) CopyWithout(removedBrick *Brick) *Plan {
+	newPlan := NewPlan()
+	for _, brick := range p.bricks {
+		if brick == removedBrick {
+			continue
+		}
+		newPlan.Add(brick.Copy())
+	}
+	return newPlan
+}
+
 func (p *Plan) Add(brick *Brick) {
 	p.bricks = append(p.bricks, brick)
 	if brick.to.x > p.maxX {
@@ -168,7 +179,7 @@ func (b Bricks) SortOnZ() Bricks {
 }
 
 // Stabilize make all bricks fallen at the lowest position (on Z) regarding other bricks
-func (p *Plan) Stabilize() *Plan {
+func (p *Plan) Stabilize() (*Plan, int) {
 	lowestZ := make([][]int, p.maxX+1)
 	for x := 0; x <= p.maxX; x++ {
 		lowestZ[x] = make([]int, p.maxY+1)
@@ -177,6 +188,7 @@ func (p *Plan) Stabilize() *Plan {
 		}
 	}
 
+	countMovedBlocks := 0
 	newPlan := NewPlan()
 	for _, brick := range p.bricks.SortOnZ() {
 		newBrick := brick.Copy()
@@ -196,13 +208,16 @@ func (p *Plan) Stabilize() *Plan {
 				lowestZ[x][y] = newBrick.to.z + 1
 			}
 		}
+		if diff > 0 {
+			countMovedBlocks++
+		}
 		newPlan.Add(newBrick)
 	}
 
-	return newPlan
+	return newPlan, countMovedBlocks
 }
 
-func (p *Plan) CountPossibleBricksToDisintegrate() int {
+func (p *Plan) ComputeBricksLinks() (map[*Brick]Bricks, map[*Brick]Bricks) {
 	brickSupportsBricks := make(map[*Brick]Bricks)
 	brickSupportedByBricks := make(map[*Brick]Bricks)
 	for _, brick := range p.bricks {
@@ -231,6 +246,11 @@ func (p *Plan) CountPossibleBricksToDisintegrate() int {
 		}
 		brickSupportedByBricks[brick] = supportedByBricks
 	}
+	return brickSupportsBricks, brickSupportedByBricks
+}
+
+func (p *Plan) CountPossibleBricksToDisintegrate() int {
+	brickSupportsBricks, brickSupportedByBricks := p.ComputeBricksLinks()
 	var count int
 	for _, supportsBricks := range brickSupportsBricks {
 		if len(supportsBricks) == 0 {
@@ -250,6 +270,16 @@ func (p *Plan) CountPossibleBricksToDisintegrate() int {
 	}
 
 	return count
+}
+
+func (p *Plan) CountBricksFallIfDisintegrated() int {
+	totalBricksFall := 0
+	for _, brick := range p.bricks {
+		newPlan := p.CopyWithout(brick)
+		_, movedBricks := newPlan.Stabilize()
+		totalBricksFall += movedBricks
+	}
+	return totalBricksFall
 }
 
 func parseCoordinates(coordinates string) Position {
@@ -316,10 +346,16 @@ func parseInput(input io.Reader) *Plan {
 	return plan
 }
 
-func getResult(input io.Reader) int {
+func getResultPart1(input io.Reader) int {
 	plan := parseInput(input)
-	stabilizedPlan := plan.Stabilize()
+	stabilizedPlan, _ := plan.Stabilize()
 	return stabilizedPlan.CountPossibleBricksToDisintegrate()
+}
+
+func getResultPart2(input io.Reader) int {
+	plan := parseInput(input)
+	stabilizedPlan, _ := plan.Stabilize()
+	return stabilizedPlan.CountBricksFallIfDisintegrated()
 }
 
 func loadFile() *os.File {
@@ -335,7 +371,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile)
+	result := getResultPart2(inputFile)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
