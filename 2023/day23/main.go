@@ -78,6 +78,104 @@ func (g Grid) String(positions ...Position) string {
 	return result
 }
 
+type Link struct {
+	to   *Node
+	cost int64
+}
+
+type Node struct {
+	position  Position
+	neighbors []Link
+}
+
+type Graph map[Position]*Node
+
+func (g Grid) Graph() Graph {
+	graph := make(Graph)
+	for i, row := range g {
+		for j, cell := range row {
+			position := Position{i, j}
+			if cell != '#' {
+				graph[position] = &Node{
+					position:  position,
+					neighbors: make([]Link, 0),
+				}
+			}
+		}
+	}
+
+	for _, node := range graph {
+		for _, direction := range []Direction{North, South, East, West} {
+			if newNeighbor := node.position.Move(direction); g.isValidMove(newNeighbor) {
+				node.neighbors = append(node.neighbors, Link{
+					to:   graph[newNeighbor],
+					cost: 1,
+				})
+			}
+		}
+	}
+
+	for {
+		hasCompressed := false
+		for _, node := range graph {
+			if len(node.neighbors) == 2 {
+				hasCompressed = true
+				neighbor1 := node.neighbors[0]
+				neighbor2 := node.neighbors[1]
+
+				var neighbor1Links []Link
+				for _, neighbor1Link := range graph[neighbor1.to.position].neighbors {
+					if neighbor1Link.to != node {
+						neighbor1Links = append(neighbor1Links, neighbor1Link)
+					}
+				}
+				neighbor1Links = append(neighbor1Links, Link{
+					to:   neighbor2.to,
+					cost: neighbor1.cost + neighbor2.cost,
+				})
+				graph[neighbor1.to.position].neighbors = neighbor1Links
+
+				var neighbor2Links []Link
+				for _, neighbor2Link := range graph[neighbor2.to.position].neighbors {
+					if neighbor2Link.to != node {
+						neighbor2Links = append(neighbor2Links, neighbor2Link)
+					}
+				}
+				neighbor2Links = append(neighbor2Links, Link{
+					to:   neighbor1.to,
+					cost: neighbor1.cost + neighbor2.cost,
+				})
+				graph[neighbor2.to.position].neighbors = neighbor2Links
+
+				delete(graph, node.position)
+				break
+			}
+		}
+		if !hasCompressed {
+			break
+		}
+	}
+
+	return graph
+}
+
+func (g Graph) GetHighestPath(start, end Position, initialPathLength int64, visited []Position) int64 {
+	if start == end {
+		return initialPathLength
+	}
+	maxLength := int64(-1)
+	for _, neighbor := range g[start].neighbors {
+		if slices.Contains(visited, neighbor.to.position) {
+			continue
+		}
+		pathLength := g.GetHighestPath(neighbor.to.position, end, initialPathLength+neighbor.cost, append(visited, neighbor.to.position))
+		if pathLength > maxLength {
+			maxLength = pathLength
+		}
+	}
+	return maxLength
+}
+
 type Step struct {
 	previousPositions []Position
 	visited           map[Position]bool
@@ -105,12 +203,12 @@ func (s *Step) Move(grid Grid, direction Direction) (*Step, bool) {
 	}
 
 	newStep := &Step{
-		previousPositions: make([]Position, 0, len(s.previousPositions)+1),
+		previousPositions: make([]Position, len(s.previousPositions), len(s.previousPositions)+1),
 		visited:           make(map[Position]bool),
 		position:          newPosition,
 	}
-	for _, previousPosition := range s.previousPositions {
-		newStep.previousPositions = append(newStep.previousPositions, previousPosition)
+	for i, previousPosition := range s.previousPositions {
+		newStep.previousPositions[i] = previousPosition
 		newStep.visited[previousPosition] = true
 	}
 	newStep.previousPositions = append(newStep.previousPositions, s.position)
@@ -121,6 +219,7 @@ func (s *Step) Move(grid Grid, direction Direction) (*Step, bool) {
 	if isSlope {
 		return newStep.Move(grid, slopeDirection)
 	}
+
 	return newStep, true
 }
 
@@ -132,30 +231,17 @@ func (s *Step) GetPath() []Position {
 	return append(s.previousPositions, s.position)
 }
 
-type StepQueue []*Step
-
-func (sq *StepQueue) Push(step *Step) {
-	*sq = append(*sq, step)
-}
-
-func (sq *StepQueue) Pop() *Step {
-	old := *sq
-	n := len(old)
-	step := old[n-1]
-	old[n-1] = nil
-	*sq = old[0 : n-1]
-	return step
-}
-
-func (g Grid) getHighestPath(start, end Position) *Step {
+func (g Grid) GetHighestPath(start, end Position) *Step {
 	allowedMoves := []Direction{North, South, East, West}
 
-	stepQueue := StepQueue{StartStep(start)}
+	var stepQueue []*Step
+	stepQueue = append(stepQueue, StartStep(start))
+
 	var highestPath *Step
 
 	for len(stepQueue) > 0 {
-		step := stepQueue.Pop()
-
+		step := stepQueue[0]
+		stepQueue = stepQueue[1:]
 		if step.position == end {
 			if highestPath == nil || step.PathLength() > highestPath.PathLength() {
 				highestPath = step
@@ -165,7 +251,7 @@ func (g Grid) getHighestPath(start, end Position) *Step {
 
 		for _, move := range allowedMoves {
 			if newStep, allowed := step.Move(g, move); allowed {
-				stepQueue.Push(newStep)
+				stepQueue = append(stepQueue, newStep)
 			}
 		}
 	}
@@ -188,14 +274,19 @@ func parseInput(input io.Reader) Grid {
 	return grid
 }
 
-func getResult(input io.Reader) int {
+func getResultPart1(input io.Reader) int {
 	grid := parseInput(input)
-	//log.Printf("Grid:\n%v", grid.String())
 	start := Position{0, 1}
 	end := Position{len(grid) - 1, len(grid[len(grid)-1]) - 2}
-	step := grid.getHighestPath(start, end)
-	//log.Printf("Grid with path:\n%v", grid.String(step.GetPath()...))
-	return step.PathLength()
+	return grid.GetHighestPath(start, end).PathLength()
+}
+
+func getResultPart2(input io.Reader) int64 {
+	grid := parseInput(input)
+	graph := grid.Graph()
+	start := Position{0, 1}
+	end := Position{len(grid) - 1, len(grid[len(grid)-1]) - 2}
+	return graph.GetHighestPath(start, end, 0, []Position{start})
 }
 
 func loadFile() *os.File {
@@ -211,7 +302,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile)
+	result := getResultPart2(inputFile)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
