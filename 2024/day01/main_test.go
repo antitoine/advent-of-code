@@ -13,7 +13,7 @@ const testingInput = `3   4
 3   3
 `
 
-const testingExpectedResult = 11
+const testingExpectedResult = 31
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))

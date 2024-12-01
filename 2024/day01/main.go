@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -27,40 +26,30 @@ func parseLine(line string) (int, int) {
 	return firstNumber, secondNumber
 }
 
-func parseInput(input io.Reader) ([]int, []int) {
+func parseInput(input io.Reader) ([]int, map[int]int) {
 	scanner := bufio.NewScanner(input)
 
 	var firstList []int
-	var secondList []int
+	secondListOcc := make(map[int]int)
 	for scanner.Scan() {
 		firstNumber, secondNumber := parseLine(scanner.Text())
 		firstList = append(firstList, firstNumber)
-		secondList = append(secondList, secondNumber)
+		secondListOcc[secondNumber]++
 	}
 
 	if errScanningFile := scanner.Err(); errScanningFile != nil {
 		log.Fatalf("Unable to scan the input file correctly: %v", errScanningFile)
 	}
 
-	if len(firstList) != len(secondList) {
-		log.Fatalf("First and second list have different lengths: %d and %d", len(firstList), len(secondList))
-	}
-
-	return firstList, secondList
+	return firstList, secondListOcc
 }
 
 func getResult(input io.Reader) int {
-	firstList, secondList := parseInput(input)
-	slices.Sort(firstList)
-	slices.Sort(secondList)
+	firstList, secondListOcc := parseInput(input)
 
 	var result int
 	for i := 0; i < len(firstList); i++ {
-		if firstList[i] < secondList[i] {
-			result += secondList[i] - firstList[i]
-		} else {
-			result += firstList[i] - secondList[i]
-		}
+		result += firstList[i] * secondListOcc[firstList[i]]
 	}
 
 	return result
