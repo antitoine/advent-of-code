@@ -23,31 +23,71 @@ func parseLine(line string) []int {
 	return numbers
 }
 
+func isSafeLevels(ascending bool, a, b int) bool {
+	if a == b {
+		return false
+	} else if ascending && (a > b || b-a > 3) {
+		return false
+	} else if !ascending && (a < b || a-b > 3) {
+		return false
+	}
+	return true
+}
+
+func isSafeReport(numbers []int) bool {
+	ascending := numbers[0] < numbers[1]
+	for i := 0; i < len(numbers)-1; i++ {
+		if !isSafeLevels(ascending, numbers[i], numbers[i+1]) {
+			return false
+		}
+	}
+	return true
+}
+
+func isSafeReportWithOneError(numbers []int) bool {
+	aLessThanBCounter := 0
+	for i := 0; i < 4; i++ {
+		if numbers[i] < numbers[i+1] {
+			aLessThanBCounter++
+		} else {
+			aLessThanBCounter--
+		}
+	}
+	ascending := true
+	if aLessThanBCounter < 0 {
+		ascending = false
+	}
+
+	if !isSafeLevels(ascending, numbers[0], numbers[1]) {
+		newSliceA := append([]int{}, numbers[1:]...)
+		newSliceB := append([]int{numbers[0]}, numbers[2:]...)
+		if !isSafeReport(newSliceB) && !isSafeReport(newSliceA) {
+			return false
+		}
+
+	}
+	for i := 1; i < len(numbers)-1; i++ {
+		if !isSafeLevels(ascending, numbers[i], numbers[i+1]) {
+			leftA := append([]int{}, numbers[:i]...)
+			newSliceA := append(leftA, numbers[i+1:]...)
+			leftB := append([]int{}, numbers[:i+1]...)
+			newSliceB := append(leftB, numbers[i+2:]...)
+			if !isSafeReport(newSliceB) && !isSafeReport(newSliceA) {
+				return false
+			}
+
+		}
+	}
+	return true
+}
+
 func parseInput(input io.Reader) int {
 	scanner := bufio.NewScanner(input)
 
 	var safeReports int
 	for scanner.Scan() {
 		numbers := parseLine(scanner.Text())
-		if len(numbers) <= 1 {
-			safeReports++
-			continue
-		}
-		ascending := numbers[0] < numbers[1]
-		isSafe := true
-		for i := 0; i < len(numbers)-1; i++ {
-			if numbers[i] == numbers[i+1] {
-				isSafe = false
-				break
-			} else if ascending && (numbers[i] > numbers[i+1] || numbers[i+1]-numbers[i] > 3) {
-				isSafe = false
-				break
-			} else if !ascending && (numbers[i] < numbers[i+1] || numbers[i]-numbers[i+1] > 3) {
-				isSafe = false
-				break
-			}
-		}
-		if isSafe {
+		if isSafeReportWithOneError(numbers) {
 			safeReports++
 		}
 	}
