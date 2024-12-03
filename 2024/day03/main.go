@@ -10,19 +10,33 @@ import (
 	"time"
 )
 
-// Match mul(2,4)
-var multiOp = regexp.MustCompile(`mul\((\d+),(\d+)\)`)
+var operations = regexp.MustCompile(`mul\((\d+),(\d+)\)|don't\(\)|do\(\)`)
+var enabled = true
 
 func parseLine(line string) int64 {
-	matches := multiOp.FindAllStringSubmatch(line, -1)
+	matches := operations.FindAllStringSubmatch(line, -1)
 	if matches == nil {
 		return 0
 	}
 
 	var result int64
 	for _, match := range matches {
-		if len(match) != 3 {
+		if len(match) <= 0 {
 			log.Fatalf("Unexpected number of matches: %v", match)
+		}
+		if match[0] == "do()" {
+			enabled = true
+			continue
+		}
+		if match[0] == "don't()" {
+			enabled = false
+			continue
+		}
+		if len(match) != 3 {
+			log.Fatalf("Unexpected number of matches ofr a mult operation: %v", match)
+		}
+		if !enabled {
+			continue
 		}
 		firstStr, secondStr := match[1], match[2]
 		first, errFirst := strconv.ParseInt(firstStr, 10, 64)
