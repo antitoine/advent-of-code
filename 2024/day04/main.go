@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -24,71 +23,26 @@ func parseInput(input io.Reader) []string {
 	return grid
 }
 
-func getVerticalWord(grid []string, i, j int) string {
-	var word string
-	for k := 0; k < 4 && i < len(grid); k++ {
-		word += string(grid[i][j])
-		i++
+func isValidMatrix(grid []string, i, j int) bool {
+	if i+2 >= len(grid) || j+2 >= len(grid[i]) {
+		return false
 	}
-	return word
-}
-
-func getDiagonalRightWord(grid []string, i, j int) string {
-	var word string
-	for k := 0; k < 4 && i < len(grid) && j < len(grid[i]); k++ {
-		word += string(grid[i][j])
-		i++
-		j++
+	if grid[i][j] != 'M' && grid[i][j] != 'S' {
+		return false
 	}
-	return word
-}
-
-func getDiagonalLeftWord(grid []string, i, j int) string {
-	var word string
-	for k := 0; k < 4 && i < len(grid) && j >= 0; k++ {
-		word += string(grid[i][j])
-		i++
-		j--
+	if grid[i+1][j+1] != 'A' {
+		return false
 	}
-	return word
-}
-
-func cntWords(grid []string, i, j int) int {
-	if grid[i][j] != 'X' && grid[i][j] != 'S' {
-		return 0
+	if grid[i][j] == 'M' && grid[i][j+2] == 'S' && grid[i+2][j] == 'M' && grid[i+2][j+2] == 'S' {
+		return true
+	} else if grid[i][j] == 'S' && grid[i][j+2] == 'M' && grid[i+2][j] == 'S' && grid[i+2][j+2] == 'M' {
+		return true
+	} else if grid[i][j] == 'M' && grid[i][j+2] == 'M' && grid[i+2][j] == 'S' && grid[i+2][j+2] == 'S' {
+		return true
+	} else if grid[i][j] == 'S' && grid[i][j+2] == 'S' && grid[i+2][j] == 'M' && grid[i+2][j+2] == 'M' {
+		return true
 	}
-	var cnt int
-	verticalWord := getVerticalWord(grid, i, j)
-	diagonalRightWord := getDiagonalRightWord(grid, i, j)
-	diagonalLeftWord := getDiagonalLeftWord(grid, i, j)
-	if grid[i][j] == 'X' {
-		if strings.HasPrefix(grid[i][j:], "XMAS") {
-			cnt++
-		}
-		if strings.HasPrefix(verticalWord, "XMAS") {
-			cnt++
-		}
-		if strings.HasPrefix(diagonalRightWord, "XMAS") {
-			cnt++
-		}
-		if strings.HasPrefix(diagonalLeftWord, "XMAS") {
-			cnt++
-		}
-	} else {
-		if strings.HasPrefix(grid[i][j:], "SAMX") {
-			cnt++
-		}
-		if strings.HasPrefix(verticalWord, "SAMX") {
-			cnt++
-		}
-		if strings.HasPrefix(diagonalRightWord, "SAMX") {
-			cnt++
-		}
-		if strings.HasPrefix(diagonalLeftWord, "SAMX") {
-			cnt++
-		}
-	}
-	return cnt
+	return false
 }
 
 func getResult(input io.Reader) int {
@@ -96,7 +50,9 @@ func getResult(input io.Reader) int {
 	var cnt int
 	for i := 0; i < len(grid); i++ {
 		for j := 0; j < len(grid[i]); j++ {
-			cnt += cntWords(grid, i, j)
+			if isValidMatrix(grid, i, j) {
+				cnt++
+			}
 		}
 	}
 	return cnt

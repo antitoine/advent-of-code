@@ -17,7 +17,7 @@ MAMMMXMMMM
 MXMXAXMASX
 `
 
-const testingExpectedResult = 18
+const testingExpectedResult = 9
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
