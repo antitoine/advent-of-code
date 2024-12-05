@@ -66,28 +66,40 @@ func parseInput(input io.Reader) (map[int][]int, [][]int) {
 	return rules, updates
 }
 
+func sortUpdate(rules map[int][]int, update []int) bool {
+	valid := true
+	process := make(map[int]int)
+	for i, nb := range update {
+		process[nb] = i
+		if rule, found := rules[nb]; found {
+			for _, after := range rule {
+				if idx, foundAfter := process[after]; foundAfter {
+					valid = false
+					for j := i; j > idx; j-- {
+						process[update[j-1]] = j
+						update[j] = update[j-1]
+					}
+					update[idx] = nb
+					process[nb] = idx
+					break
+				}
+			}
+		}
+	}
+	return valid
+}
+
 func getResult(input io.Reader) int64 {
 	rules, updates := parseInput(input)
 
 	var result int64
 	for _, update := range updates {
-		valid := true
-		process := make(map[int]struct{})
-		for _, nb := range update {
-			if rule, found := rules[nb]; found {
-				for _, after := range rule {
-					if _, foundAfter := process[after]; foundAfter {
-						valid = false
-						break
-					}
-				}
-			}
-			if !valid {
-				break
-			}
-			process[nb] = struct{}{}
+		isAlreadySorted := sortUpdate(rules, update)
+		isValid := isAlreadySorted
+		for !isValid {
+			isValid = sortUpdate(rules, update)
 		}
-		if valid {
+		if !isAlreadySorted {
 			middlePage := update[len(update)/2]
 			result += int64(middlePage)
 		}
