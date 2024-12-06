@@ -18,7 +18,7 @@ type Guard struct {
 	direction rune
 }
 
-func (g *Guard) Next(grid [][]rune) {
+func (g Guard) NextPosition() Position {
 	switch g.direction {
 	case '^':
 		g.position.y--
@@ -29,8 +29,13 @@ func (g *Guard) Next(grid [][]rune) {
 	case '>':
 		g.position.x++
 	}
+	return g.position
+}
+
+func (g Guard) Next(grid [][]rune) Guard {
+	g.position = g.NextPosition()
 	if g.position.x < 0 || g.position.x >= len(grid[0]) || g.position.y < 0 || g.position.y >= len(grid) {
-		return
+		return g
 	}
 	if grid[g.position.y][g.position.x] == '#' {
 		switch g.direction {
@@ -52,6 +57,7 @@ func (g *Guard) Next(grid [][]rune) {
 			g.direction = 'v'
 		}
 	}
+	return g
 }
 
 var directions = []rune{'^', '>', 'v', '<'}
@@ -88,18 +94,32 @@ func parseInput(input io.Reader) ([][]rune, Guard) {
 func getResult(input io.Reader) int {
 	grid, guard := parseInput(input)
 
-	visited := make(map[Position]struct{})
-	previousState := make(map[Guard]struct{})
-	for guard.position.x >= 0 && guard.position.x < len(grid[0]) && guard.position.y >= 0 && guard.position.y < len(grid) {
-		visited[guard.position] = struct{}{}
-		if _, ok := previousState[guard]; ok {
-			break
+	startingPosition := guard.position
+
+	obstaclesForLoop := make(map[Position]struct{})
+
+	for y := 0; y < len(grid); y++ {
+		for x := 0; x < len(grid[y]); x++ {
+			obstacle := Position{x, y}
+			if grid[obstacle.y][obstacle.x] == '.' && startingPosition != obstacle {
+				grid[obstacle.y][obstacle.x] = '#'
+				previousState := make(map[Guard]struct{})
+				previousState[guard] = struct{}{}
+				guardWithObstacle := guard.Next(grid)
+				for guardWithObstacle.position.y >= 0 && guardWithObstacle.position.y < len(grid) && guardWithObstacle.position.x >= 0 && guardWithObstacle.position.x < len(grid[guardWithObstacle.position.y]) {
+					if _, ok := previousState[guardWithObstacle]; ok {
+						obstaclesForLoop[obstacle] = struct{}{}
+						break
+					}
+					previousState[guardWithObstacle] = struct{}{}
+					guardWithObstacle = guardWithObstacle.Next(grid)
+				}
+				grid[obstacle.y][obstacle.x] = '.'
+			}
 		}
-		previousState[guard] = struct{}{}
-		guard.Next(grid)
 	}
 
-	return len(visited)
+	return len(obstaclesForLoop)
 }
 
 func loadFile() *os.File {
@@ -115,6 +135,9 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
+	// 1980 Wrong too high
+	// 1928 Good
+	// 1909 Wrong oo low
 	result := getResult(inputFile)
 
 	log.Printf("Final result: %d", result)
