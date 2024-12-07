@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -20,14 +21,26 @@ func getTestValueIfValid(testNum int64, values []int64, currentResult int64) int
 		}
 		return 0
 	}
+	if currentResult == 0 {
+		return getTestValueIfValid(testNum, values[1:], values[0])
+	}
 	addition := getTestValueIfValid(testNum, values[1:], currentResult+values[0])
 	if addition > 0 {
 		return addition
 	}
-	if currentResult == 0 {
-		return getTestValueIfValid(testNum, values[1:], values[0])
+	multiplication := getTestValueIfValid(testNum, values[1:], currentResult*values[0])
+	if multiplication > 0 {
+		return multiplication
 	}
-	return getTestValueIfValid(testNum, values[1:], currentResult*values[0])
+	concatSum, errConcat := strconv.ParseInt(fmt.Sprintf("%d%d", currentResult, values[0]), 10, 64)
+	if errConcat != nil {
+		log.Fatalf("Unable to concatenate %d and %d: %v", currentResult, values[0], errConcat)
+	}
+	concatenation := getTestValueIfValid(testNum, values[1:], concatSum)
+	if concatenation > 0 {
+		return concatenation
+	}
+	return 0
 }
 
 func parseLine(line string) int64 {
