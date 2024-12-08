@@ -2,22 +2,17 @@ package main
 
 import (
 	"bufio"
+	"image"
 	"io"
 	"log"
 	"os"
 	"time"
 )
 
-type Position struct {
-	x, y int
-}
-
-type Frequency rune
-
-func parseInput(input io.Reader) (map[Frequency][]Position, int, int) {
+func parseInput(input io.Reader) (map[rune][]image.Point, int, int) {
 	scanner := bufio.NewScanner(input)
 
-	antennas := make(map[Frequency][]Position)
+	antennas := make(map[rune][]image.Point)
 	y := 0
 	x := 0
 	for scanner.Scan() {
@@ -27,7 +22,7 @@ func parseInput(input io.Reader) (map[Frequency][]Position, int, int) {
 			if char == '.' {
 				continue
 			}
-			antennas[Frequency(char)] = append(antennas[Frequency(char)], Position{x, y})
+			antennas[char] = append(antennas[char], image.Point{X: x, Y: y})
 		}
 		y++
 	}
@@ -39,37 +34,26 @@ func parseInput(input io.Reader) (map[Frequency][]Position, int, int) {
 	return antennas, x, y
 }
 
-func Abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
+func isValidPosition(pos image.Point, xSize, ySize int) bool {
+	return pos.X >= 0 && pos.X < xSize && pos.Y >= 0 && pos.Y < ySize
 }
 
 func getResult(input io.Reader) int {
 	antennas, xSize, ySize := parseInput(input)
-	antinodes := map[Position]struct{}{}
+	antinodes := map[image.Point]struct{}{}
 	for _, positions := range antennas {
-		for a1 := 0; a1 < len(positions)-1; a1++ {
-			antenna1 := positions[a1]
-			for a2 := a1 + 1; a2 < len(positions); a2++ {
-				antenna2 := positions[a2]
-				firstAntinode := Position{
-					x: 2*antenna2.x - antenna1.x,
-					y: 2*antenna2.y - antenna1.y,
+		for _, antenna1 := range positions {
+			for _, antenna2 := range positions {
+				if antenna1 == antenna2 {
+					continue
 				}
-				secondAntinode := Position{
-					x: 2*antenna1.x - antenna2.x,
-					y: 2*antenna1.y - antenna2.y,
-				}
-				if firstAntinode.x >= 0 && firstAntinode.x < xSize && firstAntinode.y >= 0 && firstAntinode.y < ySize {
-					antinodes[firstAntinode] = struct{}{}
-				}
-				if secondAntinode.x >= 0 && secondAntinode.x < xSize && secondAntinode.y >= 0 && secondAntinode.y < ySize {
-					antinodes[secondAntinode] = struct{}{}
+
+				for d := antenna2.Sub(antenna1); isValidPosition(antenna2, xSize, ySize); antenna2 = antenna2.Add(d) {
+					antinodes[antenna2] = struct{}{}
 				}
 			}
 		}
+
 	}
 	return len(antinodes)
 }
