@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -45,25 +46,74 @@ func parseInput(input io.Reader) []int {
 	return result
 }
 
+func countBlockSize(disk []int, j int) int {
+	blockSize := 0
+	for k := j; k >= 0 && disk[k] == disk[j]; k-- {
+		blockSize++
+	}
+	return blockSize
+}
+
+func sortFreeSpaces(freeSpaces [][]int) {
+	sort.Slice(freeSpaces, func(i, j int) bool {
+		if freeSpaces[i][0] == freeSpaces[j][0] {
+			return freeSpaces[i][1] < freeSpaces[j][1]
+		}
+		return freeSpaces[i][0] < freeSpaces[j][0]
+	})
+}
+
 func getResult(input io.Reader) int64 {
 	initialState := parseInput(input)
-	var checksum int64
-	i := 0
-	for i < len(initialState) && initialState[i] != -1 {
-		checksum += int64(initialState[i]) * int64(i)
-		i++
-	}
-	for j := len(initialState) - 1; j > i; j-- {
-		if initialState[j] == -1 {
+
+	var freeSpaces [][]int
+	for i := 0; i < len(initialState); i++ {
+		if initialState[i] != -1 {
 			continue
 		}
-		initialState[i] = initialState[j]
-		initialState[j] = -1
-		for i < len(initialState) && initialState[i] != -1 {
-			checksum += int64(initialState[i]) * int64(i)
+		startIdx := i
+		for i < len(initialState) && initialState[i] == -1 {
 			i++
 		}
+		freeSpaces = append(freeSpaces, []int{i - startIdx, startIdx})
 	}
+	sortFreeSpaces(freeSpaces)
+
+	j := len(initialState) - 1
+	for j >= 0 {
+		if initialState[j] == -1 {
+			j--
+			continue
+		}
+		blockSize := countBlockSize(initialState, j)
+		freeSpaceIdx := sort.Search(len(freeSpaces), func(f int) bool {
+			return freeSpaces[f][0] >= blockSize
+		})
+		if freeSpaceIdx == len(freeSpaces) || freeSpaces[freeSpaceIdx][1] > j {
+			j -= blockSize
+		} else {
+			startIdx := freeSpaces[freeSpaceIdx][1]
+			for k := 0; k < blockSize; k++ {
+				initialState[startIdx+k] = initialState[j]
+				initialState[j] = -1
+				j--
+				freeSpaces[freeSpaceIdx][0]--
+				freeSpaces[freeSpaceIdx][1]++
+			}
+			if freeSpaces[freeSpaceIdx][0] == 0 {
+				freeSpaces = append(freeSpaces[:freeSpaceIdx], freeSpaces[freeSpaceIdx+1:]...)
+			}
+			sortFreeSpaces(freeSpaces)
+		}
+	}
+
+	var checksum int64
+	for i := 0; i < len(initialState); i++ {
+		if initialState[i] != -1 {
+			checksum += int64(initialState[i]) * int64(i)
+		}
+	}
+
 	return checksum
 }
 

@@ -8,7 +8,7 @@ import (
 const testingInput = `2333133121414131402
 `
 
-const testingExpectedResult = 1928
+const testingExpectedResult = 2858
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
