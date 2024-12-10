@@ -46,19 +46,15 @@ func parseInput(input io.Reader) ([]image.Point, [][]int) {
 
 var directions = []image.Point{{X: 1, Y: 0}, {X: 0, Y: 1}, {X: -1, Y: 0}, {X: 0, Y: -1}}
 
-func countTrailheadScore(startingPoint image.Point, grid [][]int, alreadyVisitedHead map[image.Point]struct{}) int64 {
+func countTrailheadScore(startingPoint image.Point, grid [][]int) int64 {
 	if grid[startingPoint.Y][startingPoint.X] == 9 {
-		if _, ok := alreadyVisitedHead[startingPoint]; ok {
-			return 0
-		}
-		alreadyVisitedHead[startingPoint] = struct{}{}
 		return 1
 	}
 	var score int64
 	for _, direction := range directions {
 		neighbour := startingPoint.Add(direction)
 		if neighbour.In(image.Rect(0, 0, len(grid[0]), len(grid))) && grid[neighbour.Y][neighbour.X] == grid[startingPoint.Y][startingPoint.X]+1 {
-			score += countTrailheadScore(neighbour, grid, alreadyVisitedHead)
+			score += countTrailheadScore(neighbour, grid)
 		}
 	}
 	return score
@@ -68,7 +64,7 @@ func getResult(input io.Reader) int64 {
 	startingPoints, grid := parseInput(input)
 	var sumScore int64
 	for _, startingPoint := range startingPoints {
-		score := countTrailheadScore(startingPoint, grid, make(map[image.Point]struct{}))
+		score := countTrailheadScore(startingPoint, grid)
 		sumScore += score
 	}
 	return sumScore
