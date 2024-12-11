@@ -58,24 +58,43 @@ func splitDigits(stone int64) (int64, int64, bool) {
 	return leftNum, rightNum, true
 }
 
-func getResult(input io.Reader) int {
+type Stone struct {
+	value  int64
+	blinks int
+}
+
+func nbStonesAfterNBlinks(stone int64, nbBlinks int, cache map[Stone]int64) int64 {
+	if nbBlinks == 0 {
+		return 1
+	}
+	if nbStones, ok := cache[Stone{value: stone, blinks: nbBlinks}]; ok {
+		return nbStones
+	}
+	if stone == 0 {
+		nbStones := nbStonesAfterNBlinks(1, nbBlinks-1, cache)
+		cache[Stone{value: stone, blinks: nbBlinks}] = nbStones
+		return nbStones
+	}
+	if left, right, isEvenDigits := splitDigits(stone); isEvenDigits {
+		nbStones := nbStonesAfterNBlinks(left, nbBlinks-1, cache) + nbStonesAfterNBlinks(right, nbBlinks-1, cache)
+		cache[Stone{value: stone, blinks: nbBlinks}] = nbStones
+		return nbStones
+	}
+	nbStones := nbStonesAfterNBlinks(stone*2024, nbBlinks-1, cache)
+	cache[Stone{value: stone, blinks: nbBlinks}] = nbStones
+	return nbStones
+}
+
+func getResult(input io.Reader) int64 {
 	state := parseInput(input)
 
-	for b := 0; b < 25; b++ {
-		var newState []int64
-		for _, stone := range state {
-			if stone == 0 {
-				newState = append(newState, 1)
-			} else if left, right, isEvenDigits := splitDigits(stone); isEvenDigits {
-				newState = append(newState, left, right)
-			} else {
-				newState = append(newState, stone*2024)
-			}
-		}
-		state = newState
+	cache := make(map[Stone]int64)
+	var result int64
+	for _, stone := range state {
+		result += nbStonesAfterNBlinks(stone, 25, cache)
 	}
 
-	return len(state)
+	return result
 }
 
 func loadFile() *os.File {
