@@ -17,7 +17,7 @@ MIIISIJEEE
 MMMISSJEEE
 `
 
-const testingExpectedResult = 1930
+const testingExpectedResult = 1206
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))

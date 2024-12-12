@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -41,13 +42,20 @@ var directions = []image.Point{
 	image.Pt(-1, 0),
 }
 
-func getZoneAreaAndPerimeter(grid [][]rune, point image.Point, visited map[image.Point]struct{}) (int64, int64) {
+type Side struct {
+	direction image.Point
+	point     image.Point
+}
+
+func getZoneArea(grid [][]rune, point image.Point, visited map[image.Point]struct{}, sides map[Side]struct{}) int64 {
 	var area int64
-	var perimeter int64
 	for _, direction := range directions {
 		neighbour := point.Add(direction)
 		if !isValidPoint(grid, neighbour) || grid[neighbour.Y][neighbour.X] != grid[point.Y][point.X] {
-			perimeter++
+			sides[Side{
+				direction: direction,
+				point:     point,
+			}] = struct{}{}
 			continue
 		}
 		if _, ok := visited[neighbour]; ok {
@@ -55,12 +63,42 @@ func getZoneAreaAndPerimeter(grid [][]rune, point image.Point, visited map[image
 		}
 		visited[neighbour] = struct{}{}
 
-		neighbourArea, neighbourPerimeter := getZoneAreaAndPerimeter(grid, neighbour, visited)
+		neighbourArea := getZoneArea(grid, neighbour, visited, sides)
 		area += neighbourArea
-		perimeter += neighbourPerimeter
 	}
 
-	return area + 1, perimeter
+	return area + 1
+}
+
+func getAxisAndPosition(direction image.Point, point image.Point) (int, int) {
+	if direction.X == 0 {
+		return point.Y, point.X
+	} else {
+		return point.X, point.Y
+	}
+}
+
+func countDistinctSides(sides map[Side]struct{}) int64 {
+	var sidesCnt int64
+	for _, direction := range directions {
+		sameSidePoints := make(map[int][]int)
+		for side := range sides {
+			if side.direction == direction {
+				axis, position := getAxisAndPosition(direction, side.point)
+				sameSidePoints[axis] = append(sameSidePoints[axis], position)
+			}
+		}
+		for _, positions := range sameSidePoints {
+			sort.Ints(positions)
+			sidesCnt++
+			for i := 1; i < len(positions); i++ {
+				if positions[i]-positions[i-1] > 1 {
+					sidesCnt++
+				}
+			}
+		}
+	}
+	return sidesCnt
 }
 
 func getResult(input io.Reader) int64 {
@@ -74,8 +112,9 @@ func getResult(input io.Reader) int64 {
 				continue
 			}
 			visited[point] = struct{}{}
-			area, perimeter := getZoneAreaAndPerimeter(grid, point, visited)
-			result += area * perimeter
+			sides := make(map[Side]struct{})
+			area := getZoneArea(grid, point, visited, sides)
+			result += area * countDistinctSides(sides)
 		}
 	}
 	return result
