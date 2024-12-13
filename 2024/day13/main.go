@@ -5,7 +5,6 @@ import (
 	"image"
 	"io"
 	"log"
-	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -35,6 +34,8 @@ func parseButton(line string) image.Point {
 
 var prizeRegex = regexp.MustCompile(`Prize: X=(\d+), Y=(\d+)`)
 
+const prizeCorrection = 10000000000000
+
 func parsePrize(line string) image.Point {
 	matches := prizeRegex.FindStringSubmatch(line)
 	if matches == nil {
@@ -51,7 +52,7 @@ func parsePrize(line string) image.Point {
 		log.Fatalf("Unable to parse Y from line: %s", errParsingY)
 	}
 
-	return image.Pt(x, y)
+	return image.Pt(x+prizeCorrection, y+prizeCorrection)
 }
 
 type Game struct {
@@ -60,29 +61,25 @@ type Game struct {
 	Prize   image.Point
 }
 
-const maxButton = 100
 const costButtonA = 3
 const costButtonB = 1
 
 func (g Game) Solve() int {
-	minC := math.MaxInt
+	det := g.ButtonA.X*g.ButtonB.Y - g.ButtonA.Y*g.ButtonB.X
+	if det == 0 {
+		return 0
+	}
+	xNumerator := g.Prize.X*g.ButtonB.Y - g.Prize.Y*g.ButtonB.X
+	yNumerator := g.ButtonA.X*g.Prize.Y - g.ButtonA.Y*g.Prize.X
 
-	for a := 0; a <= maxButton; a++ {
-		for b := 0; b <= maxButton; b++ {
-			if g.ButtonA.X*a+g.ButtonB.X*b == g.Prize.X && g.ButtonA.Y*a+g.ButtonB.Y*b == g.Prize.Y {
-				c := costButtonA*a + costButtonB*b
-				if c < minC {
-					minC = c
-				}
-			}
-		}
+	if xNumerator%det != 0 || yNumerator%det != 0 {
+		return 0
 	}
 
-	if minC < math.MaxInt {
-		return minC
-	}
+	aParticular := xNumerator / det
+	bParticular := yNumerator / det
 
-	return 0
+	return costButtonA*aParticular + costButtonB*bParticular
 }
 
 func parseInput(input io.Reader) []Game {
