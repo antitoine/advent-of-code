@@ -23,10 +23,9 @@ const testingExpectedResult = 12
 
 const testingSizeX = 11
 const testingSizeY = 7
-const testingNbSeconds = 100
 
 func TestGetResults(t *testing.T) {
-	result := getResult(strings.NewReader(testingInput), testingSizeX, testingSizeY, testingNbSeconds)
+	result := getResult(strings.NewReader(testingInput), testingSizeX, testingSizeY)
 	if result != testingExpectedResult {
 		t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
 	}
@@ -35,14 +34,14 @@ func TestGetResults(t *testing.T) {
 func BenchmarkGetResult(b *testing.B) {
 	b.Run("small", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
-			getResult(strings.NewReader(testingInput), testingSizeX, testingSizeY, testingNbSeconds)
+			getResult(strings.NewReader(testingInput), testingSizeX, testingSizeY)
 		}
 	})
 
 	b.Run("large", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			inputFile := loadFile()
-			getResult(inputFile, testingSizeX, testingSizeY, testingNbSeconds)
+			getResult(inputFile, testingSizeX, testingSizeY)
 			inputFile.Close()
 		}
 	})
