@@ -16,7 +16,7 @@ type State struct {
 	robot  image.Point
 }
 
-func (s *State) moveElt(instruction image.Point, elt image.Point) bool {
+func (s *State) checkMoveElt(instruction image.Point, elt image.Point) bool {
 	newPosition := elt.Add(instruction)
 	if !newPosition.In(s.space) {
 		return false
@@ -24,15 +24,46 @@ func (s *State) moveElt(instruction image.Point, elt image.Point) bool {
 	if s.matrix[newPosition.Y][newPosition.X] == '#' {
 		return false
 	}
-	if s.matrix[newPosition.Y][newPosition.X] == 'O' && !s.moveElt(instruction, newPosition) {
+	if s.matrix[newPosition.Y][newPosition.X] == 'O' && !s.checkMoveElt(instruction, newPosition) {
 		return false
 	}
-	s.matrix[newPosition.Y][newPosition.X], s.matrix[elt.Y][elt.X] = s.matrix[elt.Y][elt.X], s.matrix[newPosition.Y][newPosition.X]
+	if s.matrix[newPosition.Y][newPosition.X] == '[' {
+		if instruction == directions[Right] {
+			return s.checkMoveElt(instruction, newPosition.Add(image.Pt(1, 0)))
+		} else if instruction == directions[Up] || instruction == directions[Down] {
+			return s.checkMoveElt(instruction, newPosition) && s.checkMoveElt(instruction, newPosition.Add(image.Pt(1, 0)))
+		} else {
+			return s.checkMoveElt(instruction, newPosition)
+		}
+	}
+	if s.matrix[newPosition.Y][newPosition.X] == ']' {
+		if instruction == directions[Left] {
+			return s.checkMoveElt(instruction, newPosition.Add(image.Pt(-1, 0)))
+		} else if instruction == directions[Up] || instruction == directions[Down] {
+			return s.checkMoveElt(instruction, newPosition) && s.checkMoveElt(instruction, newPosition.Add(image.Pt(-1, 0)))
+		} else {
+			return s.checkMoveElt(instruction, newPosition)
+		}
+	}
 	return true
 }
 
+func (s *State) moveElt(instruction image.Point, elt image.Point, sibling bool) {
+	if s.matrix[elt.Y][elt.X] == '#' || s.matrix[elt.Y][elt.X] == '.' {
+		return
+	} else if s.matrix[elt.Y][elt.X] == '[' && !sibling {
+		s.moveElt(instruction, elt.Add(image.Pt(1, 0)), true)
+	} else if s.matrix[elt.Y][elt.X] == ']' && !sibling {
+		s.moveElt(instruction, elt.Add(image.Pt(-1, 0)), true)
+	}
+	newPosition := elt.Add(instruction)
+	s.moveElt(instruction, newPosition, false)
+	s.matrix[newPosition.Y][newPosition.X], s.matrix[elt.Y][elt.X] = s.matrix[elt.Y][elt.X], s.matrix[newPosition.Y][newPosition.X]
+}
+
 func (s *State) Move(instruction image.Point) {
-	if s.moveElt(instruction, s.robot) {
+	if s.checkMoveElt(instruction, s.robot) {
+		s.moveElt(instruction, s.robot, false)
 		s.robot = s.robot.Add(instruction)
 	}
 }
@@ -41,7 +72,7 @@ func (s *State) GetBoxPositions() []image.Point {
 	var boxes []image.Point
 	for y, row := range s.matrix {
 		for x, char := range row {
-			if char == 'O' {
+			if char == 'O' || char == '[' {
 				boxes = append(boxes, image.Pt(x, y))
 			}
 		}
@@ -53,6 +84,32 @@ func (s *State) Print() {
 	for _, row := range s.matrix {
 		fmt.Println(string(row))
 	}
+}
+
+func (s *State) UpSize() {
+	newMatrix := make([][]rune, s.space.Dy())
+	var newRobot image.Point
+	for y := range newMatrix {
+		newMatrix[y] = make([]rune, s.space.Dx()*2)
+		for x, char := range s.matrix[y] {
+			if char == 'O' {
+				newMatrix[y][x*2] = '['
+				newMatrix[y][(x*2)+1] = ']'
+				continue
+			}
+			if char == '@' {
+				newMatrix[y][x*2] = '@'
+				newMatrix[y][(x*2)+1] = '.'
+				newRobot = image.Pt(x*2, y)
+				continue
+			}
+			newMatrix[y][x*2] = char
+			newMatrix[y][(x*2)+1] = char
+		}
+	}
+	s.matrix = newMatrix
+	s.space = image.Rect(0, 0, s.space.Dx()*2, s.space.Dy())
+	s.robot = newRobot
 }
 
 func parseMap(lines []string) *State {
@@ -77,11 +134,18 @@ func parseMap(lines []string) *State {
 	}
 }
 
+const (
+	Right = '>'
+	Left  = '<'
+	Up    = '^'
+	Down  = 'v'
+)
+
 var directions = map[rune]image.Point{
-	'^': image.Pt(0, -1),
-	'v': image.Pt(0, 1),
-	'<': image.Pt(-1, 0),
-	'>': image.Pt(1, 0),
+	Up:    image.Pt(0, -1),
+	Down:  image.Pt(0, 1),
+	Left:  image.Pt(-1, 0),
+	Right: image.Pt(1, 0),
 }
 
 func parseInstructions(line string) []image.Point {
@@ -123,6 +187,7 @@ func parseInput(input io.Reader) (*State, []image.Point) {
 
 func getResult(input io.Reader) int64 {
 	state, instructions := parseInput(input)
+	state.UpSize()
 	for _, instruction := range instructions {
 		state.Move(instruction)
 	}

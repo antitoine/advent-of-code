@@ -28,7 +28,7 @@ vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
 v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^
 `
 
-const testing1ExpectedResult = 10092
+const testing1ExpectedResult = 9021
 
 const testing2Input = `########
 #..O.O.#
@@ -42,7 +42,7 @@ const testing2Input = `########
 <^^>>>vv<v>>v<<
 `
 
-const testing2ExpectedResult = 2028
+const testing2ExpectedResult = 1751
 
 func TestGetResults(t *testing.T) {
 	t.Run("small", func(t *testing.T) {
