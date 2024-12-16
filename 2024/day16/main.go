@@ -85,6 +85,7 @@ type Path struct {
 	score int64
 	dir   Direction
 	pos   image.Point
+	path  []image.Point
 }
 
 type SmallestPathHeap []Path
@@ -107,7 +108,7 @@ func (h *SmallestPathHeap) Pop() any {
 
 func smallestPath(board *Board) int64 {
 	paths := &SmallestPathHeap{}
-	heap.Push(paths, Path{0, East, board.start})
+	heap.Push(paths, Path{0, East, board.start, nil})
 	visited := make(map[image.Point]struct{})
 
 	for paths.Len() > 0 {
@@ -121,7 +122,7 @@ func smallestPath(board *Board) int64 {
 		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
 			if _, ok := visited[nextPos]; !ok {
 				visited[nextPos] = struct{}{}
-				heap.Push(paths, Path{path.score + 1, path.dir, nextPos})
+				heap.Push(paths, Path{path.score + 1, path.dir, nextPos, nil})
 			}
 		}
 
@@ -130,25 +131,16 @@ func smallestPath(board *Board) int64 {
 		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
 			if _, ok := visited[nextPos]; !ok {
 				visited[nextPos] = struct{}{}
-				heap.Push(paths, Path{path.score + 1001, nextDir, nextPos})
+				heap.Push(paths, Path{path.score + 1001, nextDir, nextPos, nil})
 			}
 		}
 
-		nextDir = nextDirection(nextDir)
+		nextDir = nextDirection(nextDirection(nextDir))
 		nextPos = path.pos.Add(directions[nextDir])
 		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
 			if _, ok := visited[nextPos]; !ok {
 				visited[nextPos] = struct{}{}
-				heap.Push(paths, Path{path.score + 2001, nextDir, nextPos})
-			}
-		}
-
-		nextDir = nextDirection(nextDir)
-		nextPos = path.pos.Add(directions[nextDir])
-		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
-			if _, ok := visited[nextPos]; !ok {
-				visited[nextPos] = struct{}{}
-				heap.Push(paths, Path{path.score + 1001, nextDir, nextPos})
+				heap.Push(paths, Path{path.score + 1001, nextDir, nextPos, nil})
 			}
 		}
 	}
@@ -156,9 +148,74 @@ func smallestPath(board *Board) int64 {
 	return 0
 }
 
-func getResult(input io.Reader) int64 {
+type PosDir struct {
+	pos image.Point
+	dir Direction
+}
+
+func getAllOptimalTiles(board *Board, targetScore int64) int {
+	paths := &SmallestPathHeap{}
+	heap.Push(paths, Path{0, East, board.start, []image.Point{board.start}})
+	visited := make(map[PosDir]int64)
+	var smallestPaths []*Path
+
+	for paths.Len() > 0 {
+		path := heap.Pop(paths).(Path)
+
+		if path.score > targetScore {
+			continue
+		}
+
+		visitedKey := PosDir{path.pos, path.dir}
+		if score, exists := visited[visitedKey]; exists && score < path.score {
+			continue
+		}
+		visited[visitedKey] = path.score
+
+		if path.pos == board.end && path.score == targetScore {
+			smallestPaths = append(smallestPaths, &path)
+			continue
+		}
+
+		nextPos := path.pos.Add(directions[path.dir])
+		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
+			newPath := make([]image.Point, len(path.path))
+			copy(newPath, path.path)
+			heap.Push(paths, Path{path.score + 1, path.dir, nextPos, append(newPath, nextPos)})
+		}
+
+		nextDir := nextDirection(path.dir)
+		nextPos = path.pos.Add(directions[nextDir])
+		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
+			newPath := make([]image.Point, len(path.path))
+			copy(newPath, path.path)
+			heap.Push(paths, Path{path.score + 1001, nextDir, nextPos, append(newPath, nextPos)})
+		}
+
+		nextDir = nextDirection(nextDirection(nextDir))
+		nextPos = path.pos.Add(directions[nextDir])
+		if nextPos.In(board.space) && board.cells[nextPos.Y][nextPos.X] != '#' {
+			newPath := make([]image.Point, len(path.path))
+			copy(newPath, path.path)
+			heap.Push(paths, Path{path.score + 1001, nextDir, nextPos, append(newPath, nextPos)})
+		}
+	}
+
+	uniqueTiles := make(map[image.Point]struct{})
+	for _, path := range smallestPaths {
+		for _, pos := range path.path {
+			uniqueTiles[pos] = struct{}{}
+		}
+	}
+
+	return len(uniqueTiles)
+}
+
+func getResult(input io.Reader) int {
 	board := parseInput(input)
-	return smallestPath(board)
+	smallestScore := smallestPath(board)
+	fmt.Printf("Smallest score: %d\n", smallestScore)
+	return getAllOptimalTiles(board, smallestScore)
 }
 
 func loadFile() *os.File {
