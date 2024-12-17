@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ type Program struct {
 	registers    map[Register]int64
 	instructions []Instruction
 	pointer      int
-	outs         []string
+	outs         []Instruction
 }
 
 func (p *Program) comboOperand(op Operand) int64 {
@@ -140,7 +141,7 @@ func (p *Program) process() bool {
 	case bxc:
 		p.registers[regB] = p.registers[regB] ^ p.registers[regC]
 	case out:
-		p.outs = append(p.outs, strconv.FormatInt(p.comboOperand(operand)%8, 10))
+		p.outs = append(p.outs, Instruction(p.comboOperand(operand)%8))
 	case bdv:
 		p.registers[regB] = p.registers[regA] / int64(math.Pow(2, float64(p.comboOperand(operand))))
 	case cdv:
@@ -150,12 +151,33 @@ func (p *Program) process() bool {
 	return false
 }
 
-func getResult(input io.Reader) string {
-	registers, instructions := parseInput(input)
-	program := Program{registers, instructions, 0, nil}
-	for !program.process() {
+func newRegisters(registers map[Register]int64) map[Register]int64 {
+	nr := make(map[Register]int64)
+	for register, value := range registers {
+		nr[register] = value
 	}
-	return strings.Join(program.outs, ",")
+	return nr
+}
+
+func getResult(input io.Reader) int64 {
+	registers, instructions := parseInput(input)
+	var a int64
+	for itr := len(instructions) - 1; itr >= 0; itr-- {
+		a <<= 3
+		for {
+			updatedRegisters := newRegisters(registers)
+			updatedRegisters[regA] = a
+			program := Program{updatedRegisters, instructions, 0, nil}
+			for !program.process() {
+			}
+			if slices.Equal(program.outs, instructions[itr:]) {
+				break
+			}
+			a++
+		}
+	}
+
+	return a
 }
 
 func loadFile() *os.File {
@@ -173,6 +195,6 @@ func main() {
 
 	result := getResult(inputFile)
 
-	log.Printf("Final result: %s", result)
+	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
 }
