@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -42,24 +43,6 @@ func parseInput(input io.Reader) []image.Point {
 	}
 
 	return corruptedBytes
-}
-
-func printMap(space image.Rectangle, corruptedBytes []image.Point) {
-	corruptedBytesMap := make(map[image.Point]struct{})
-	for c := 0; c < len(corruptedBytes); c++ {
-		corruptedBytesMap[corruptedBytes[c]] = struct{}{}
-	}
-
-	for y := 0; y < space.Dy(); y++ {
-		for x := 0; x < space.Dx(); x++ {
-			if _, ok := corruptedBytesMap[image.Point{X: x, Y: y}]; ok {
-				fmt.Print("X")
-			} else {
-				fmt.Print(".")
-			}
-		}
-		fmt.Print("\n")
-	}
 }
 
 type Path struct {
@@ -124,12 +107,17 @@ func shortestPath(space image.Rectangle, corruptedBytes []image.Point) int64 {
 	return -1
 }
 
-func getResult(input io.Reader, space image.Rectangle, nbCorruptedBytes int) int64 {
+func getResult(input io.Reader, space image.Rectangle) string {
 	corruptedBytes := parseInput(input)
 
-	printMap(space, corruptedBytes[:nbCorruptedBytes])
+	i := sort.Search(len(corruptedBytes), func(i int) bool {
+		return shortestPath(space, corruptedBytes[:i]) < 0
+	})
+	if i-1 < len(corruptedBytes) {
+		return fmt.Sprintf("%d,%d", corruptedBytes[i-1].X, corruptedBytes[i-1].Y)
+	}
 
-	return shortestPath(space, corruptedBytes[:nbCorruptedBytes])
+	return "unknown"
 }
 
 func loadFile() *os.File {
@@ -145,8 +133,8 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile, image.Rectangle{Min: image.Pt(0, 0), Max: image.Pt(71, 71)}, 1024)
+	result := getResult(inputFile, image.Rectangle{Min: image.Pt(0, 0), Max: image.Pt(71, 71)})
 
-	log.Printf("Final result: %d", result)
+	log.Printf("Final result: %s", result)
 	log.Printf("Execution took %s", time.Since(start))
 }

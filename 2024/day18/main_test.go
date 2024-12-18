@@ -35,28 +35,26 @@ const testingInput = `5,4
 
 var testingInputSpace = image.Rectangle{Min: image.Pt(0, 0), Max: image.Pt(7, 7)}
 
-const testingInputNbCorruptedBytes = 12
-
-const testingExpectedResult = 22
+const testingExpectedResult = "6,1"
 
 func TestGetResults(t *testing.T) {
-	result := getResult(strings.NewReader(testingInput), testingInputSpace, testingInputNbCorruptedBytes)
+	result := getResult(strings.NewReader(testingInput), testingInputSpace)
 	if result != testingExpectedResult {
-		t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		t.Errorf("Expected result to be %s, got %s", testingExpectedResult, result)
 	}
 }
 
 func BenchmarkGetResult(b *testing.B) {
 	b.Run("small", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
-			getResult(strings.NewReader(testingInput), testingInputSpace, testingInputNbCorruptedBytes)
+			getResult(strings.NewReader(testingInput), testingInputSpace)
 		}
 	})
 
 	b.Run("large", func(b *testing.B) {
 		for n := 0; n < b.N; n++ {
 			inputFile := loadFile()
-			getResult(inputFile, image.Rectangle{Min: image.Pt(0, 0), Max: image.Pt(69, 69)}, 1024)
+			getResult(inputFile, image.Rectangle{Min: image.Pt(0, 0), Max: image.Pt(71, 71)})
 			inputFile.Close()
 		}
 	})
