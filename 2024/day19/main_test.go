@@ -17,7 +17,7 @@ brgr
 bbrgwb
 `
 
-const testingExpectedResult = 6
+const testingExpectedResult = 16
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))

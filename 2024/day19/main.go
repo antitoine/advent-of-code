@@ -46,11 +46,11 @@ func parseInput(input io.Reader) (map[rune][]string, []string) {
 	return inventory, models
 }
 
-var cache = make(map[string]bool)
+var cache = make(map[string]int64)
 
-func isModelCompatible(model string, inventory map[rune][]string) bool {
+func howManyPossibleArrangements(model string, inventory map[rune][]string) int64 {
 	if model == "" {
-		return true
+		return 0
 	}
 	if result, ok := cache[model]; ok {
 		return result
@@ -58,29 +58,31 @@ func isModelCompatible(model string, inventory map[rune][]string) bool {
 	firstColor := rune(model[0])
 	available, ok := inventory[firstColor]
 	if !ok {
-		return false
+		return 0
 	}
+	var nbArrangements int64
 	for _, part := range available {
-		if strings.HasPrefix(model, part) && isModelCompatible(model[len(part):], inventory) {
-			cache[model] = true
-			return true
+		if strings.HasPrefix(model, part) {
+			if len(part) == len(model) {
+				nbArrangements++
+			} else {
+				nbArrangements += howManyPossibleArrangements(model[len(part):], inventory)
+			}
 		}
 	}
-	cache[model] = false
-	return false
+	cache[model] = nbArrangements
+	return nbArrangements
 }
 
 func getResult(input io.Reader) int64 {
 	inventory, models := parseInput(input)
 
-	var nbCompatibleModels int64
+	var nbArrangementsSum int64
 	for _, model := range models {
-		if isModelCompatible(model, inventory) {
-			nbCompatibleModels++
-		}
+		nbArrangementsSum += howManyPossibleArrangements(model, inventory)
 	}
 
-	return nbCompatibleModels
+	return nbArrangementsSum
 }
 
 func loadFile() *os.File {
