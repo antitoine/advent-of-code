@@ -90,20 +90,18 @@ func abs(x int) int {
 }
 
 func getAllPossiblePathWithCheat(normalPath []image.Point, nbCheat int, minReductionSteps int) int64 {
-	positions := make([]image.Point, 0, len(normalPath))
 	distances := make([]int, 0, len(normalPath))
 
-	for i, pos := range normalPath {
-		positions = append(positions, pos)
+	for i := range normalPath {
 		distances = append(distances, i)
 	}
 
 	var result int64
-	for i := 0; i < len(positions); i++ {
-		for j := i + 1; j < len(positions); j++ {
-			distance := manhattanDistance(positions[i], positions[j])
+	for i := 0; i < len(normalPath); i++ {
+		for j := i + 1; j < len(normalPath); j++ {
+			distance := manhattanDistance(normalPath[i], normalPath[j])
 			diff := distances[j] - distances[i] - distance
-			if distance == nbCheat && diff >= minReductionSteps {
+			if distance < nbCheat+1 && diff >= minReductionSteps {
 				result++
 			}
 		}
@@ -133,7 +131,7 @@ func main() {
 	inputFile := loadFile()
 	defer inputFile.Close()
 
-	result := getResult(inputFile, 2, 100)
+	result := getResult(inputFile, 20, 100)
 
 	log.Printf("Final result: %d", result)
 	log.Printf("Execution took %s", time.Since(start))
