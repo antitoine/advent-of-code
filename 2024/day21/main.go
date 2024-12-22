@@ -273,7 +273,7 @@ func getSequence(codes [][]Code, numericalMap NumericalMap, directionalMap Direc
 
 func getResult(input io.Reader) int64 {
 	codes := parseInput(input)
-	return getSequence(codes, numericalMap, directionalMap, 2)
+	return getSequence(codes, numericalMap, directionalMap, 25)
 }
 
 func loadFile() *os.File {
