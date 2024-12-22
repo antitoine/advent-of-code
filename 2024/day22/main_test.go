@@ -6,12 +6,12 @@ import (
 )
 
 const testingInput = `1
-10
-100
+2
+3
 2024
 `
 
-const testingExpectedResult = 37327623
+const testingExpectedResult = 23
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
