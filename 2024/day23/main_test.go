@@ -39,12 +39,12 @@ tb-vc
 td-yn
 `
 
-const testingExpectedResult = 7
+const testingExpectedResult = "co,de,ka,ta"
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
 	if result != testingExpectedResult {
-		t.Errorf("Expected result to be %d, got %d", testingExpectedResult, result)
+		t.Errorf("Expected result to be %s, got %s", testingExpectedResult, result)
 	}
 }
 
