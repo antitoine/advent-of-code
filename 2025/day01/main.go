@@ -32,13 +32,16 @@ func parseLine(line string) int {
 func computePassword(input io.Reader) int {
 	scanner := bufio.NewScanner(input)
 	nbOfZeroes := 0
-	curentValue := initialValue
+	currentValue := initialValue
 	for scanner.Scan() {
 		rotation := parseLine(scanner.Text())
-		curentValue = (curentValue + rotation) % 100
-		if curentValue == 0 {
+		nbOfZeroes += max(rotation, -rotation) / 100
+
+		newValue := currentValue + rotation%100
+		if (rotation > 0 && newValue >= 100) || (rotation < 0 && newValue <= 0 && currentValue > 0) {
 			nbOfZeroes++
 		}
+		currentValue = (newValue + 100) % 100
 	}
 
 	if errScanningFile := scanner.Err(); errScanningFile != nil {

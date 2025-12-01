@@ -17,7 +17,7 @@ R14
 L82
 `
 
-const testingExpectedResult = 3
+const testingExpectedResult = 6
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
