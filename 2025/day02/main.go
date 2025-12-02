@@ -45,10 +45,9 @@ func parseInput(input io.Reader) ([]idRange, int) {
 }
 
 func generateInvalidNumbers(maxVal int) []int {
-	var invalid []int
+	invalidSet := make(map[int]struct{})
 
-	// Generate all numbers that are a pattern repeated twice
-	// For pattern of length n, the resulting number has 2n digits
+	// Generate all numbers that are a pattern repeated at least twice
 	for patternLen := 1; ; patternLen++ {
 		minPattern := 1
 		if patternLen > 1 {
@@ -56,23 +55,30 @@ func generateInvalidNumbers(maxVal int) []int {
 		}
 		maxPattern := intPow(10, patternLen) - 1
 
-		// The smallest invalid number for this pattern length
+		// The smallest invalid number for this pattern length (repeated twice)
 		smallestInvalid := minPattern*intPow(10, patternLen) + minPattern
 		if smallestInvalid > maxVal {
 			break
 		}
 
 		for pattern := minPattern; pattern <= maxPattern; pattern++ {
-			// Create invalid number by concatenating pattern with itself
+			// Generate pattern repeated 2, 3, 4, ... times
+			invalidNum := pattern
 			multiplier := intPow(10, patternLen)
-			invalidNum := pattern*multiplier + pattern
-			if invalidNum > maxVal {
-				break
+			for repeatCount := 2; ; repeatCount++ {
+				invalidNum = invalidNum*multiplier + pattern
+				if invalidNum > maxVal {
+					break
+				}
+				invalidSet[invalidNum] = struct{}{}
 			}
-			invalid = append(invalid, invalidNum)
 		}
 	}
 
+	invalid := make([]int, 0, len(invalidSet))
+	for num := range invalidSet {
+		invalid = append(invalid, num)
+	}
 	return invalid
 }
 
