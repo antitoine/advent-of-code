@@ -8,24 +8,33 @@ import (
 	"time"
 )
 
-func maxJoltage(bank string) int {
-	maxVal := 0
-	for i := 0; i < len(bank)-1; i++ {
-		d1 := int(bank[i] - '0')
-		for j := i + 1; j < len(bank); j++ {
-			d2 := int(bank[j] - '0')
-			joltage := d1*10 + d2
-			if joltage > maxVal {
-				maxVal = joltage
+const digitsToSelect = 12
+
+func maxJoltage(bank string) int64 {
+	n := len(bank)
+	result := int64(0)
+	start := 0
+
+	for i := 0; i < digitsToSelect; i++ {
+		end := n - digitsToSelect + i
+
+		maxIdx := start
+		for j := start + 1; j <= end; j++ {
+			if bank[j] > bank[maxIdx] {
+				maxIdx = j
 			}
 		}
+
+		result = result*10 + int64(bank[maxIdx]-'0')
+		start = maxIdx + 1
 	}
-	return maxVal
+
+	return result
 }
 
-func getResult(input io.Reader) int {
+func getResult(input io.Reader) int64 {
 	scanner := bufio.NewScanner(input)
-	total := 0
+	total := int64(0)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
