@@ -9,10 +9,10 @@ import (
 )
 
 func getResult(input io.Reader) int64 {
-	var grid []string
+	var grid [][]byte
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
-		grid = append(grid, scanner.Text())
+		grid = append(grid, []byte(scanner.Text()))
 	}
 
 	rows := len(grid)
@@ -27,28 +27,40 @@ func getResult(input io.Reader) int64 {
 		{1, -1}, {1, 0}, {1, 1},
 	}
 
-	var count int64
-	for r := range rows {
-		for c := range cols {
-			if grid[r][c] != '@' {
-				continue
-			}
+	var totalRemoved int64
+	for {
+		var toRemove [][2]int
+		for r := range rows {
+			for c := range cols {
+				if grid[r][c] != '@' {
+					continue
+				}
 
-			adjacentRolls := 0
-			for _, d := range directions {
-				nr, nc := r+d[0], c+d[1]
-				if nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] == '@' {
-					adjacentRolls++
+				adjacentRolls := 0
+				for _, d := range directions {
+					nr, nc := r+d[0], c+d[1]
+					if nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] == '@' {
+						adjacentRolls++
+					}
+				}
+
+				if adjacentRolls < 4 {
+					toRemove = append(toRemove, [2]int{r, c})
 				}
 			}
-
-			if adjacentRolls < 4 {
-				count++
-			}
 		}
+
+		if len(toRemove) == 0 {
+			break
+		}
+
+		for _, pos := range toRemove {
+			grid[pos[0]][pos[1]] = '.'
+		}
+		totalRemoved += int64(len(toRemove))
 	}
 
-	return count
+	return totalRemoved
 }
 
 func loadFile() *os.File {
