@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -18,39 +19,39 @@ func getResult(input io.Reader) int64 {
 	scanner := bufio.NewScanner(input)
 
 	var ranges []Range
-	var ingredientIDs []int64
-	parsingRanges := true
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
 		if line == "" {
-			parsingRanges = false
-			continue
+			break
 		}
 
-		if parsingRanges {
-			parts := strings.Split(line, "-")
-			start, _ := strconv.ParseInt(parts[0], 10, 64)
-			end, _ := strconv.ParseInt(parts[1], 10, 64)
-			ranges = append(ranges, Range{start: start, end: end})
-		} else {
-			id, _ := strconv.ParseInt(line, 10, 64)
-			ingredientIDs = append(ingredientIDs, id)
+		parts := strings.Split(line, "-")
+		start, _ := strconv.ParseInt(parts[0], 10, 64)
+		end, _ := strconv.ParseInt(parts[1], 10, 64)
+		ranges = append(ranges, Range{start: start, end: end})
+	}
+
+	sort.Slice(ranges, func(i, j int) bool {
+		return ranges[i].start < ranges[j].start
+	})
+
+	var merged []Range
+	for _, r := range ranges {
+		if len(merged) == 0 || r.start > merged[len(merged)-1].end+1 {
+			merged = append(merged, r)
+		} else if r.end > merged[len(merged)-1].end {
+			merged[len(merged)-1].end = r.end
 		}
 	}
 
-	var freshCount int64
-	for _, id := range ingredientIDs {
-		for _, r := range ranges {
-			if id >= r.start && id <= r.end {
-				freshCount++
-				break
-			}
-		}
+	var totalFresh int64
+	for _, r := range merged {
+		totalFresh += r.end - r.start + 1
 	}
 
-	return freshCount
+	return totalFresh
 }
 
 func loadFile() *os.File {
