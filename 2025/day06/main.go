@@ -70,24 +70,27 @@ func getResult(input io.Reader) int64 {
 	for _, pr := range problemRanges {
 		startCol, endCol := pr[0], pr[1]
 
-		var numbers []int64
 		var op rune = 0
+		for col := startCol; col < endCol; col++ {
+			c := rune(paddedLines[operatorRow][col])
+			if c == '*' || c == '+' {
+				op = c
+				break
+			}
+		}
 
-		for row := 0; row < len(paddedLines); row++ {
-			substr := paddedLines[row][startCol:endCol]
-			trimmed := strings.TrimSpace(substr)
-
-			if row == operatorRow {
-				if len(trimmed) > 0 {
-					op = rune(trimmed[0])
+		var numbers []int64
+		for col := endCol - 1; col >= startCol; col-- {
+			numStr := ""
+			for row := 0; row < operatorRow; row++ {
+				c := paddedLines[row][col]
+				if c >= '0' && c <= '9' {
+					numStr += string(c)
 				}
-			} else {
-				if trimmed != "" {
-					num, err := strconv.ParseInt(trimmed, 10, 64)
-					if err == nil {
-						numbers = append(numbers, num)
-					}
-				}
+			}
+			if numStr != "" {
+				num, _ := strconv.ParseInt(numStr, 10, 64)
+				numbers = append(numbers, num)
 			}
 		}
 

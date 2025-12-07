@@ -11,7 +11,7 @@ const testingInput = `123 328  51 64
 *   +   *   +
 `
 
-const testingExpectedResult = 4277556
+const testingExpectedResult = 3263827
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))
