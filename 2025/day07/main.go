@@ -44,46 +44,49 @@ func getResult(input io.Reader) int64 {
 
 	width := len(grid[0])
 
-	// Track active beam columns using a map as a set
-	activeBeams := make(map[int]bool)
-	activeBeams[startCol] = true
-
-	splitCount := int64(0)
+	// Track count of timelines at each column position
+	timelines := make(map[int]int64)
+	timelines[startCol] = 1
 
 	// Process rows starting from the row after S
 	for row := startRow + 1; row < len(grid); row++ {
-		if len(activeBeams) == 0 {
+		if len(timelines) == 0 {
 			break
 		}
 
-		newBeams := make(map[int]bool)
+		newTimelines := make(map[int]int64)
 		line := grid[row]
 
-		for col := range activeBeams {
+		for col, count := range timelines {
 			if col < 0 || col >= width {
 				continue
 			}
 
 			ch := line[col]
 			if ch == '^' {
-				splitCount++
 				leftCol := col - 1
 				rightCol := col + 1
 				if leftCol >= 0 {
-					newBeams[leftCol] = true
+					newTimelines[leftCol] += count
 				}
 				if rightCol < width {
-					newBeams[rightCol] = true
+					newTimelines[rightCol] += count
 				}
 			} else {
-				newBeams[col] = true
+				newTimelines[col] += count
 			}
 		}
 
-		activeBeams = newBeams
+		timelines = newTimelines
 	}
 
-	return splitCount
+	// Sum all timelines
+	var total int64
+	for _, count := range timelines {
+		total += count
+	}
+
+	return total
 }
 
 func loadFile() *os.File {
