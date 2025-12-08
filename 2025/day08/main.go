@@ -62,17 +62,15 @@ func (uf *UnionFind) Union(x, y int) bool {
 	return true
 }
 
-func (uf *UnionFind) GetCircuitSizes() []int {
-	sizes := make(map[int]int)
+func (uf *UnionFind) IsSingleCircuit() bool {
+	// Check if all nodes are in the same circuit
+	// We can check if the root's size equals the total number of nodes
 	for i := range uf.parent {
-		root := uf.Find(i)
-		sizes[root] = uf.size[root]
+		if uf.Find(i) == i && uf.size[i] == len(uf.parent) {
+			return true
+		}
 	}
-	result := make([]int, 0, len(sizes))
-	for _, s := range sizes {
-		result = append(result, s)
-	}
-	return result
+	return false
 }
 
 func distance(a, b Point) float64 {
@@ -119,29 +117,23 @@ func getResult(input io.Reader) int64 {
 		return 0
 	})
 
-	// Determine number of connections based on input size
-	numConnections := 10
-	if n > 100 {
-		numConnections = 1000
-	}
-
-	// Connect closest pairs using Union-Find
-	// We process numConnections pairs (even if some are already in the same circuit)
+	// Connect closest pairs until all boxes are in a single circuit
 	uf := NewUnionFind(n)
-	for i := 0; i < numConnections && i < len(pairs); i++ {
-		uf.Union(pairs[i].i, pairs[i].j)
+	var lastPair Pair
+
+	for _, pair := range pairs {
+		// Try to union - if successful, this merged two circuits
+		if uf.Union(pair.i, pair.j) {
+			lastPair = pair
+			// Check if all boxes are now in a single circuit
+			if uf.IsSingleCircuit() {
+				break
+			}
+		}
 	}
 
-	// Get circuit sizes and find 3 largest
-	sizes := uf.GetCircuitSizes()
-	slices.SortFunc(sizes, func(a, b int) int { return b - a }) // Descending
-
-	result := int64(1)
-	for i := 0; i < 3 && i < len(sizes); i++ {
-		result *= int64(sizes[i])
-	}
-
-	return result
+	// Return the product of X coordinates of the last two boxes connected
+	return int64(points[lastPair.i].x) * int64(points[lastPair.j].x)
 }
 
 func loadFile() *os.File {
