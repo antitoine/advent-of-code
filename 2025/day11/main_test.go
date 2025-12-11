@@ -5,19 +5,22 @@ import (
 	"testing"
 )
 
-const testingInput = `aaa: you hhh
-you: bbb ccc
-bbb: ddd eee
-ccc: ddd eee fff
-ddd: ggg
-eee: out
-fff: out
+const testingInput = `svr: aaa bbb
+aaa: fft
+fft: ccc
+bbb: tty
+tty: ccc
+ccc: ddd eee
+ddd: hub
+hub: fff
+eee: dac
+dac: fff
+fff: ggg hhh
 ggg: out
-hhh: ccc fff iii
-iii: out
+hhh: out
 `
 
-const testingExpectedResult = 5
+const testingExpectedResult = 2
 
 func TestGetResults(t *testing.T) {
 	result := getResult(strings.NewReader(testingInput))

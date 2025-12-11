@@ -25,24 +25,50 @@ func parseInput(input io.Reader) map[string][]string {
 	return graph
 }
 
-func countPaths(graph map[string][]string, current, target string) int64 {
-	if current == target {
-		return 1
+type memoKey struct {
+	node       string
+	visitedDac bool
+	visitedFft bool
+}
+
+func countPaths(graph map[string][]string, memo map[memoKey]int64, current, target string, visitedDac, visitedFft bool) int64 {
+	if current == "dac" {
+		visitedDac = true
 	}
+	if current == "fft" {
+		visitedFft = true
+	}
+
+	key := memoKey{current, visitedDac, visitedFft}
+	if cached, exists := memo[key]; exists {
+		return cached
+	}
+
+	if current == target {
+		if visitedDac && visitedFft {
+			return 1
+		}
+		return 0
+	}
+
 	outputs, exists := graph[current]
 	if !exists {
 		return 0
 	}
+
 	var count int64
 	for _, next := range outputs {
-		count += countPaths(graph, next, target)
+		count += countPaths(graph, memo, next, target, visitedDac, visitedFft)
 	}
+
+	memo[key] = count
 	return count
 }
 
 func getResult(input io.Reader) int64 {
 	graph := parseInput(input)
-	return countPaths(graph, "you", "out")
+	memo := make(map[memoKey]int64)
+	return countPaths(graph, memo, "svr", "out", false, false)
 }
 
 func loadFile() *os.File {
